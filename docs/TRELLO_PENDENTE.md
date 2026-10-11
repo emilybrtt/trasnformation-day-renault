@@ -9,3 +9,4 @@ credenciais (`TRELLO_KEY`/`TRELLO_TOKEN`) estiverem disponíveis.
 | B1 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/1 |
 | B2 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/2 |
 | B3 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/3 |
+| B4 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/4 |
