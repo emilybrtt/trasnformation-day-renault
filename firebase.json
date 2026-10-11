@@ -1,0 +1,19 @@
+{
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "ui": {
+      "enabled": false
+    }
+  },
+  "hosting": {
+    "public": "apps/web/dist",
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
