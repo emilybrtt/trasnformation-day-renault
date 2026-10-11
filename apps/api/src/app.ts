@@ -6,11 +6,14 @@ import { ZodError } from 'zod'
 import { ErroHttp } from './lib/erroHttp.js'
 import { agenteRouter } from './routes/agente.js'
 import { alertasRouter } from './routes/alertas.js'
+import { anexosRouter } from './routes/anexos.js'
+import { arquivosRouter } from './routes/arquivos.js'
 import { chamadoRouter } from './routes/chamado.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { extracaoRouter } from './routes/extracao.js'
 import { listasRouter } from './routes/listas.js'
 import { meRouter } from './routes/me.js'
+import { notificacoesRouter } from './routes/notificacoes.js'
 import { solicitacoesRouter } from './routes/solicitacoes.js'
 
 export function createApp() {
@@ -30,6 +33,9 @@ export function createApp() {
   app.use(extracaoRouter)
   app.use(dashboardRouter)
   app.use(agenteRouter)
+  app.use(anexosRouter)
+  app.use(arquivosRouter)
+  app.use(notificacoesRouter)
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {

@@ -84,6 +84,7 @@ model Escritorio {
 
   usuarios      Usuario[]
   solicitacoes  Solicitacao[]
+  notificacoes  Notificacao[]
 }
 
 model Fornecedor {
@@ -133,10 +134,11 @@ model Solicitacao {
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
-  lancamentos Lancamento[]
-  anexos      Anexo[]
-  alertas     Alerta[]
-  comentarios Comentario[]
+  lancamentos   Lancamento[]
+  anexos        Anexo[]
+  alertas       Alerta[]
+  comentarios   Comentario[]
+  notificacoes  Notificacao[]
 
   @@index([escritorioId])
   @@index([status])
@@ -222,6 +224,19 @@ model Historico {
   createdAt   DateTime @default(now())
 
   @@index([entidade, entidadeId])
+}
+
+model Notificacao {
+  id            String       @id @default(cuid())
+  escritorioId  String
+  escritorio    Escritorio   @relation(fields: [escritorioId], references: [id])
+  solicitacaoId String?
+  solicitacao   Solicitacao? @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  mensagem      String
+  lida          Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  @@index([escritorioId])
 }
 
 model ConfiguracaoChamado {
