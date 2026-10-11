@@ -115,3 +115,22 @@ instrução do briefing ("decida, registre aqui e siga").
   (`scripts/*.ts`, `apps/api/prisma/seed.ts`) não eram cobertos por `npm run
   typecheck` até agora (gap que já existia desde o B2 com `create-users.ts`); agora
   `npm run typecheck` também roda `tsc -p tsconfig.scripts.json` sobre eles.
+
+## B5 — autenticação e permissões (2026-10-11)
+
+- **Escopo por escritório é uma função pura, não um middleware de rota.** A
+  `escritorioId` de um recurso (ex.: uma `Solicitacao`) só é conhecida depois de
+  buscá-lo no banco, então `podeAcessarEscritorio(usuario, escritorioId)` é chamada
+  dentro do handler da rota (B6+) e devolve 404 — nunca 403 — quando nega, para não
+  revelar que o recurso existe.
+- **Testes de integração reais, não mocks, para `auth`.** Em vez de mockar
+  `verifyIdToken`, os testes trocam um custom token (Admin SDK) por um ID token de
+  verdade via o endpoint REST do Auth Emulator
+  (`identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken`) — o mesmo
+  middleware que roda em produção é exercitado de ponta a ponta. Helper em
+  `apps/api/src/test-helpers/emulatorAuth.ts`.
+- **Histórico (`registrarHistorico`) é só a função utilitária neste card.** B6+ chama
+  isso em cada escrita de negócio; B5 entrega e testa a função, não tem ainda quem
+  chamar de verdade.
+- **`GET /me`** é a única rota de negócio deste card — só para validar o middleware
+  de ponta a ponta; as rotas de `/solicitacoes` chegam no B6.
