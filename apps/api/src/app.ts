@@ -6,6 +6,7 @@ import { ZodError } from 'zod'
 import { ErroHttp } from './lib/erroHttp.js'
 import { alertasRouter } from './routes/alertas.js'
 import { chamadoRouter } from './routes/chamado.js'
+import { dashboardRouter } from './routes/dashboard.js'
 import { extracaoRouter } from './routes/extracao.js'
 import { listasRouter } from './routes/listas.js'
 import { meRouter } from './routes/me.js'
@@ -26,6 +27,7 @@ export function createApp() {
   app.use(alertasRouter)
   app.use(chamadoRouter)
   app.use(extracaoRouter)
+  app.use(dashboardRouter)
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {

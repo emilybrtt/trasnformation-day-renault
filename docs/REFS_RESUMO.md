@@ -31,6 +31,25 @@ números de processo, CPF/CNPJ ou valores reais.
 | PIF/PDV (Sim/Não) | `Lancamento.area` = `TRABALHISTA PIF/PDV` quando "Sim" | usuário |
 | SIBEL (conforme BENNER) | — | **Fora do escopo** — código de outro sistema interno (Benner), sem equivalente no de-para contábil deste MVP |
 
+## `.pptx` — PAGAMENTOS APRESENTAÇÃO RAP (lista dos relatórios → endpoint/dashboard)
+
+9 slides, 8 gráficos (todos de barra, exceto um de linha). Só estrutura abaixo —
+nenhum valor numérico do arquivo foi copiado.
+
+| Slide/gráfico | Tipo | Agrupamento | Endpoint/dashboard (B12) |
+|---|---|---|---|
+| "G&A — Honorários" (mensal) | barra | mês | `GET /dashboard/realizado-mensal?ano=` filtrado por motivo=Honorários |
+| "Acordos e Condenações" (mensal, com contagem por tipo) | barra | mês × (Acordo/Condenação) | `GET /dashboard/por-motivo` + `realizado-mensal` |
+| "Honorários variáveis anual" | linha | ano | `GET /dashboard/honorarios-anual` *(novo, B12)* |
+| "Histórico Honorários Anual" | barra | ano | `GET /dashboard/honorarios-anual` *(mesmo endpoint, soma e média)* |
+| "Acordos e Condenações 2023" / "...2024" / "Pagamentos 2022 Vs 2023" | barra | ano × motivo | `GET /dashboard/por-motivo` (um `de`/`ate` por ano, comparado no front) |
+| "Depósitos Judiciais x Seguro Garantia" | barra | motivo × motivo | `GET /dashboard/por-motivo` (os dois motivos aparecem na mesma resposta) |
+| "Devoluções Anuais — Recompra de veículos" | barra | ano | **Fora do escopo do GAVVE** — é sobre recompra/devolução de veículos, não pagamento do Jurídico. Não implementado. |
+
+Nenhum relatório do `.pptx` ficou sem endpoint, exceto o de recompra de veículos
+(explicitamente fora do domínio deste MVP). O endpoint extra do B12 em relação à
+lista do briefing é `GET /dashboard/honorarios-anual`.
+
 **Divergência com o `CONTEXT.md`:** a lista real de "tipo do pagamento" no e-mail
 (acordo/condenação/custas processuais/recurso/depósito) não é idêntica à lista de
 motivos do dropdown do briefing (Condenação, Acordo, Acordo Projeto SAC, Custas
