@@ -298,3 +298,20 @@ instrução do briefing ("decida, registre aqui e siga").
   teste (CNPJ só de teste) em vez de reaproveitar o CNPJ real do TRT 9ª Região do
   `guia-1.pdf` — evita colidir com o fornecedor do seed (B4), que usa o mesmo CNPJ
   real.
+
+## B12 — dashboards (2026-10-11)
+
+- **Abri o `.pptx` do RAP (só estrutura, sem copiar valores).** 9 slides, 8 gráficos
+  (quase todos de barra). Mapeamento completo em `docs/REFS_RESUMO.md`. Só um slide
+  ficou fora do escopo: "Devoluções Anuais — Recompra de veículos" (processo de
+  recompra de veículos, não é pagamento do Jurídico).
+- **Endpoint extra do card:** `GET /dashboard/honorarios-anual` — cobre "Histórico
+  Honorários Anual" e "Honorários variáveis anual", reaproveitando
+  `mediaHonorarios('ano', ...)` (que já devolve soma e média).
+- **Funções de serviço em `apps/api/src/services/dashboards.ts`**, puras (recebem
+  filtros, devolvem dados), para o B11 reusar como ferramentas do assistente.
+- **"Realizado" = status PAGO pela `dataPagamento`**, em todos os endpoints exceto
+  `/dashboard/funil` (que precisa ver todos os status, inclusive o "vazamento" para
+  DEVOLVIDO/CANCELADO).
+- **Agregação em memória (JS), não SQL `GROUP BY` entre tabelas relacionadas** — meso
+  padrão já usado desde o B6/B7, aceitável na escala do MVP (~200 registros).
