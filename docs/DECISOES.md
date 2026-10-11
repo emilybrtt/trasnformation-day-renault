@@ -375,3 +375,59 @@ instrução do briefing ("decida, registre aqui e siga").
   listar; ESCRITORIO vê só as próprias, ANALISTA/GESTOR veem de todos (mesma regra
   de escopo do B12). Marcar como lida fica para um card futuro, se vier a ser
   pedido.
+
+## F9 — front, base + Escritório (2026-10-11)
+
+- **F9/F10/F11 não têm escopo detalhado no prompt** (só "Fase C — cards F9 a
+  F11", sem descrição por card, diferente de B1-B14) e o board do Trello não
+  está acessível (modo soft). Dividi por papel, na mesma ordem da seção 4.2 do
+  briefing: **F9 = base (router/auth/http) + Login + telas de Escritório**,
+  F10 = Analista, F11 = Gestor + Assistente IA. ANALISTA/GESTOR que logarem
+  antes do F10/F11 veem uma tela "Em construção" em vez de 404/crash.
+- **Visual "reaproveitado" como tokens, não como cópia do CSS do mockup.**
+  `docs/design/front-renault.html` é uma página estática com HTML montado via
+  template string em JS vanilla (`render()`/`renderSummary()` etc.), não um
+  componente reusável. Extraí a paleta de cores e as 3 fontes (Lexend/Fira
+  Sans/IBM Plex Mono) para custom properties em `index.css` e componentes
+  Tailwind próprios (`bg-[var(--accent)]` etc.) — mesma identidade visual, sem
+  portar 1700 linhas de CSS bespoke (clip-path, skew etc.) nem a estrutura
+  `#pt`/`#dono` pensada para JS vanilla.
+- **`firebase` (client SDK) fixado em `11.10.0`, não a major mais recente.**
+  A partir da v12/v13 atual, `@firebase/app` passou a exigir `node >=24.12` nos
+  `engines` do seu `package.json` — incompatível com o Node 20 que o CLAUDE.md
+  e o `ci.yml` mandam para o projeto. A v11 ainda aceita `node >=18`. (O aviso
+  `EBADENGINE` que ainda aparece no `npm install` vem de um sub-dependente
+  opcional do pacote de compatibilidade do Firestore/Storage, que este projeto
+  nem importa — confirmado que `npm run build`, o dev server do Vite e o
+  bundle de `firebase/auth` funcionam normalmente no Node 20.)
+- **Duas pequenas rotas novas na API, fora do escopo original do B-series,
+  só leitura de referência:** `GET /fornecedores` (autocomplete do campo
+  "fornecedor" do passo 2) e reaproveitamento do `GET /de-para` que já existia
+  (B4/B6) para o painel "Dados contábeis (automático)". Mesma categoria de
+  `GET /listas`; cobertas por teste novo (`routes/__tests__/listas.test.ts`,
+  que também passou a cobrir `/listas` e `/de-para`, sem teste dedicado até
+  agora).
+- **"Nova solicitação" sempre termina enviando (criar + `POST .../enviar` em
+  sequência), não oferece "salvar como rascunho".** O briefing descreve o
+  wizard como "revisão e **envio**"; like a tela de rascunho/edição (`PATCH`)
+  já existe na API desde o B6 para quando for necessária, mas não é o foco
+  deste fluxo de criação.
+- **O PDF da guia/NF é enviado duas vezes** (uma para `/extracao`, assim que
+  selecionado, para a IA preencher os campos; outra para
+  `/solicitacoes/:id/anexos` depois que a solicitação é criada, já que o B13
+  não tem uma rota para "anexar pelo `chave` que já existe no storage"). Gasta
+  um pouco mais de storage local à toa, mas evita abrir uma nova rota só para
+  isso — se vier a importar no overhead de upload, dá para revisitar.
+- **"Linha do tempo de status" no Detalhe é derivada da posição no enum
+  `StatusSolicitacao`, sem timestamp de cada etapa.** Não existe endpoint
+  público de histórico (a tabela `Historico` é só auditoria interna, nunca
+  exposta via API) — mostrar "em qual status já passou" é a leitura mais
+  simples que ainda é informativa, sem precisar abrir uma rota nova.
+- **Comentários do Detalhe são só leitura.** A única forma de criar um
+  `Comentario` hoje é `devolverSolicitacao` (B6) — não existe (nem o briefing
+  pede) um campo livre de "adicionar comentário"; a tela só lista o que já
+  existe (o motivo de cada devolução).
+- **Rascunho salvo automaticamente (debounce 2s) é só no `localStorage` do
+  navegador**, não contra o status `RASCUNHO` no servidor — evita ficar
+  criando/atualizando uma `Solicitacao` real a cada 2s enquanto o usuário só
+  está digitando nos passos 1-2 do wizard (antes de existir um `id`).
