@@ -272,3 +272,29 @@ instrução do briefing ("decida, registre aqui e siga").
 - **`POST /integracoes/lbs/enviar/:id` reaproveita `abrirChamado` do B6**: o
   "envio simulado" só gera o número e delega a transição de estado (`APROVADO` →
   `CHAMADO_ABERTO`) para a função que já existia, sem duplicar a regra.
+
+## B10 — extração de PDFs por IA (2026-10-11)
+
+- **Troquei `pdf-parse` por `pdfjs-dist` direto.** `pdf-parse` está sem manutenção
+  desde 2019 e embute um `pdf.js` de 2017 tão antigo que nem lê os PDFs gerados pelo
+  `pdfkit` atual do B4 — falha com "bad XRef entry" mesmo num PDF trivial sem
+  nenhum conteúdo especial (reproduzi fora dos testes para confirmar que não era
+  bug meu). `pdfjs-dist` (o pdf.js de verdade, mantido pela Mozilla) lê os mesmos
+  arquivos sem problema.
+- **Bug de regex pego pelo próprio teste:** o extrator do `MockLlm` usava
+  `${label}:\s*(.+)` sem ancorar `^` no início da linha — "Prestador:" batia como
+  substring dentro de "CNPJ do prestador:" e devolvia o CNPJ no lugar do nome.
+  Corrigido com `^${label}:` + flag `m`.
+- **`LlmProvider.extrairDocumento`** devolve `GuiaExtraida | NfExtraida` conforme o
+  `tipo`; `MockLlm` lê o PDF com `pdfjs-dist` + regex (determinístico, sem
+  credencial); `GeminiProvider` envia o PDF em base64 como `inlineData` +
+  instrução, pedindo `responseMimeType: 'application/json'`.
+- **Timeout de 20s com fallback "manual":** se a extração falhar ou exceder o
+  tempo, a rota não quebra — devolve `sucesso: false` e `dadosExtraidos: {}`, o
+  arquivo já foi salvo no storage, e o usuário preenche os campos manualmente
+  (como o front já previa: "✨ preenchido pela IA, confira").
+- **Sugestão de fornecedor por CNPJ** compara o CNPJ extraído (normalizado,
+  só dígitos) contra `Fornecedor.cnpj`. Testei com um PDF fictício gerado no próprio
+  teste (CNPJ só de teste) em vez de reaproveitar o CNPJ real do TRT 9ª Região do
+  `guia-1.pdf` — evita colidir com o fornecedor do seed (B4), que usa o mesmo CNPJ
+  real.
