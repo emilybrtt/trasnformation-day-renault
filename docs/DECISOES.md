@@ -134,3 +134,51 @@ instrução do briefing ("decida, registre aqui e siga").
   chamar de verdade.
 - **`GET /me`** é a única rota de negócio deste card — só para validar o middleware
   de ponta a ponta; as rotas de `/solicitacoes` chegam no B6.
+
+## B6 — API principal de solicitações (2026-10-11)
+
+- **Fase A abreviada, feita "just in time" no B6.** Li o `.eml` real agora (só
+  estrutura, nenhum dado real copiado) e escrevi `docs/REFS_RESUMO.md`. O `.pptx` de
+  relatórios ainda não foi aberto — fica para o B12.
+- **Dois campos novos no `Lancamento`** (`tipoAcao`, `valorProvisaoProjuris`,
+  opcionais) vieram direto do e-mail real. Nome do reclamante, cargo, período
+  imprescrito, abatimento de depósito recursal, apólice de seguro garantia e o
+  código "SIBEL/BENNER" foram conscientemente **deixados de fora** — ou são dado
+  pessoal que a pasta Projuris já existe para evitar guardar (LGPD), ou são detalhe
+  jurídico que não alimenta o fluxo de pagamento/contábil deste MVP.
+- **`POST /enviar` pula o estado `ENVIADO` e vai direto para `EM_CONFERENCIA`.** O
+  enum mantém `ENVIADO` (dado de demonstração no seed já o usa), mas a transição real
+  da API não passa por ele — o texto do briefing diz "enviar → roda B7", e B7 (motor
+  de validação, ainda não implementado) é o que de fato prepara a solicitação para a
+  fila do analista. Quando o B7 existir, ele entra nesse mesmo endpoint.
+- **404, não 403, para recurso de outro escritório** — função pura
+  `podeAcessarEscritorio` (B5) chamada em cada handler depois de buscar o recurso,
+  como o B5 já previa.
+- **`aprovar` bloqueia tanto por `Alerta` vermelho aberto quanto por
+  `Lancamento.semaforo = VERMELHO` direto.** Como o motor de validação (B7) ainda não
+  cria as linhas de `Alerta` automaticamente, o B6 já marca o semáforo do lançamento
+  como VERMELHO quando não há de-para (`DE_PARA_INEXISTENTE`) — e `aprovar` respeita
+  os dois sinais, não só o `Alerta`. Isso evita abrir um buraco de regra até o B7
+  chegar.
+- **Código de status HTTP:** 409 só para transição de estado inválida (ex.: aprovar
+  uma solicitação que não está em `EM_CONFERENCIA`); 422 para a regra de negócio
+  "vermelho aberto bloqueia aprovação"; 400 para erro de validação do zod
+  (`ZodError`) ou corpo faltando (ex.: comentário/justificativa vazios).
+- **`PATCH` substitui todos os lançamentos quando `linhas` é enviado** (apaga e
+  recria dentro de uma transação), em vez de tentar diff por id — mais simples para
+  o MVP e combina com a tela "tabela de várias linhas" do front, que reenvia a
+  tabela inteira a cada edição.
+- **Semáforo da solicitação é sempre derivado** (pior entre os lançamentos),
+  calculado em memória nas respostas de leitura — não existe coluna
+  `Solicitacao.semaforo` (só `Lancamento.semaforo`, que é persistido). O filtro
+  `semaforo` em `GET /solicitacoes` por isso é aplicado em memória, não no SQL —
+  aceitável na escala do MVP (~200 registros).
+
+- **Correção de CI no B6:** `packages/shared` precisava de `npm run build` antes de
+  qualquer workspace poder importar `@gavve/shared` (seu `main`/`types` apontam para
+  `dist/`). Isso passou despercebido até o B6 porque foi o primeiro card a de fato
+  importar o pacote de um outro workspace — localmente eu tinha buildado manualmente
+  sem perceber que o `npm ci` do CI não faria isso. Corrigido com um `postinstall: "npm
+  run build"` em `packages/shared/package.json` (mesmo padrão já usado no
+  `prisma generate` do `apps/api`). Confirmei localmente com `rm -rf node_modules && npm
+  ci` do zero.
