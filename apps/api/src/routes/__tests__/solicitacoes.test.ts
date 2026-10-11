@@ -141,6 +141,8 @@ describe.skipIf(semEmulador)('rotas de /solicitacoes', () => {
   it('fluxo completo: enviar → aprovar → devolver bloqueado → chamado → pagamento', async () => {
     const criado = await request(app).post('/solicitacoes').set('Authorization', `Bearer ${tokenEscritorioA}`).send(payload())
     const id = criado.body.id
+    // RBS_DD_GUIA exige o anexo da guia (CAMPO_OBRIGATORIO) — sem ele, o B7 bloqueia a aprovação.
+    await prisma.anexo.create({ data: { solicitacaoId: id, tipo: 'GUIA', caminho: 'teste.pdf', nomeArquivo: 'teste.pdf' } })
 
     const enviado = await request(app).post(`/solicitacoes/${id}/enviar`).set('Authorization', `Bearer ${tokenEscritorioA}`)
     expect(enviado.status).toBe(200)

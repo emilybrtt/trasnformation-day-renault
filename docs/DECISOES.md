@@ -182,3 +182,33 @@ instrução do briefing ("decida, registre aqui e siga").
   run build"` em `packages/shared/package.json` (mesmo padrão já usado no
   `prisma generate` do `apps/api`). Confirmei localmente com `rm -rf node_modules && npm
   ci` do zero.
+
+## B7 — motor de validações (2026-10-11)
+
+- **Novo campo `Lancamento.valorTotalInformado` (opcional).** O e-mail real (B6)
+  mostra o escritório digitando **três** valores independentes: principal, juros e
+  total — exatamente o tipo de transcrição que pode ficar inconsistente. Decidi usar
+  esse campo (quando informado) para `SOMA_DIVERGENTE` (VERMELHO, checagem interna:
+  "o que você digitou não soma") e manter `DIVERGENCIA_VALOR_DOC` (AMARELO) como a
+  comparação contra o valor que a IA extraiu do PDF (`Anexo.dadosExtraidos`, B10) —
+  são duas fontes de verdade diferentes (o que o usuário digitou vs. o documento),
+  por isso duas regras com severidades diferentes.
+- **Tolerância de centavos com arredondamento explícito.** Comparar valores
+  monetários como `number` direto (`Math.abs(a - b) > 0.01`) dá falso positivo por
+  erro de ponto flutuante (ex.: `110.01 - 110` não é exatamente `0.01` em IEEE754).
+  A função `diferenca()` arredonda os dois valores a centavos antes de subtrair.
+- **Semáforo da solicitação agora considera alertas sem lançamento específico.**
+  `SALDO_ADIANTAMENTO` e o `CAMPO_OBRIGATORIO` de anexo ausente são alertas da
+  solicitação como um todo (`lancamentoId: null`) — se só olhasse o semáforo dos
+  lançamentos, um VERMELHO desses ficaria invisível na lista/detalhe. Criei
+  `semaforoDaSolicitacao(lancamentos, alertasSemLancamento)` para isso (B6 usava só
+  `piorSemaforo` dos lançamentos).
+- **`validarEAtualizarAlertas` é "recompute total".** A cada chamada (hoje, só no
+  `enviar`), apaga todos os alertas **ainda abertos** da solicitação e grava os
+  recém-calculados; alertas já **resolvidos** (histórico) nunca são tocados. Isso
+  evita duplicar alertas se a solicitação for devolvida e reenviada várias vezes.
+- **`VALOR_ATIPICO` exige amostra mínima de 3** lançamentos comparáveis
+  (área+motivo) para calcular média/desvio — com menos dados, a regra não dispara
+  (evita marcar como atípico algo só porque é o primeiro registro daquele tipo).
+- **Teste por regra**, todos de integração real contra o Postgres
+  (`apps/api/src/services/__tests__/validacoes.test.ts`), como pedia o card.

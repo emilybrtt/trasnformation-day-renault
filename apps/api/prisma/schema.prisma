@@ -152,6 +152,7 @@ model Lancamento {
   valorPrincipal      Decimal     @db.Decimal(14, 2)
   valorJurosCorrecao  Decimal     @db.Decimal(14, 2) @default(0)
   valorProvisaoProjuris Decimal?  @db.Decimal(14, 2)
+  valorTotalInformado Decimal?    @db.Decimal(14, 2)
   tipoAcao            String?
   centroCusto         String?
   contaContabil       String?
