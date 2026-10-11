@@ -17,7 +17,9 @@
     "db:migrate": "npm run db:migrate -w @gavve/api",
     "db:deploy": "npm run db:deploy -w @gavve/api",
     "db:seed": "npm run db:seed -w @gavve/api",
-    "demo:reset": "npm run demo:reset -w @gavve/api"
+    "demo:reset": "npm run demo:reset -w @gavve/api",
+    "auth:seed-users": "tsx scripts/create-users.ts",
+    "test:emulated": "firebase emulators:exec --only auth --project demo-gavve \"npm test\""
   },
   "devDependencies": {
     "@eslint/js": "^9.11.0",
@@ -29,9 +31,11 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.12",
+    "firebase-admin": "^12.5.0",
     "firebase-tools": "^13.17.0",
     "globals": "^15.9.0",
     "prettier": "^3.3.3",
+    "tsx": "^4.19.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.6.0",
     "vitest": "^2.1.1"
