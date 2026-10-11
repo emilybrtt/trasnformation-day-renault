@@ -53,6 +53,21 @@ provider mock determinístico.
 | `npm run db:seed` | popula o banco com dados fictícios de demonstração |
 | `npm run demo:reset` | recria a base demo do zero |
 
+## Login demo
+
+Com o emulador do Firebase Auth rodando (`npm run dev` já sobe ele), crie os usuários
+de demonstração uma vez com:
+
+```bash
+npm run auth:seed-users
+```
+
+| E-mail | Senha | Perfil |
+|---|---|---|
+| escritorio@demo.gavve | demo1234 | ESCRITORIO |
+| analista@demo.gavve | demo1234 | ANALISTA |
+| gestor@demo.gavve | demo1234 | GESTOR |
+
 ## Variáveis de ambiente
 
 Ver [`.env.example`](./.env.example). Tudo tem um padrão que funciona localmente sem
