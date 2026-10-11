@@ -9,6 +9,7 @@ import type { Semaforo, StatusSolicitacao, TipoFluxo } from '@prisma/client'
 import { Router } from 'express'
 import { assincrona } from '../lib/assincrona.js'
 import { getStorage } from '../lib/storage/index.js'
+import { uploadArquivo } from '../lib/upload.js'
 import { auth, exige } from '../middleware/auth.js'
 import { gerarRateioXlsx } from '../services/rateio.js'
 import * as servico from '../services/solicitacoes.js'
@@ -111,9 +112,15 @@ solicitacoesRouter.post(
   '/solicitacoes/:id/pagamento',
   auth,
   exige('ANALISTA'),
+  // Multipart opcional: o comprovante (B13) pode vir junto ou a solicitação pode
+  // ser paga sem ele (multer não altera req.body quando o request não é multipart).
+  uploadArquivo.single('comprovante'),
   assincrona(async (req, res) => {
     const dados = registrarPagamentoSchema.parse(req.body)
-    const solicitacao = await servico.registrarPagamento(req.usuario!, req.params.id, dados)
+    const comprovante = req.file
+      ? { buffer: req.file.buffer, nomeArquivo: req.file.originalname, mimetype: req.file.mimetype }
+      : undefined
+    const solicitacao = await servico.registrarPagamento(req.usuario!, req.params.id, dados, comprovante)
     res.json(solicitacao)
   }),
 )

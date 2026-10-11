@@ -346,3 +346,32 @@ instrução do briefing ("decida, registre aqui e siga").
 - **`comparativoAnual` compara os dois anos no mesmo intervalo de meses** (ex.:
   jan-set em ambos), não ano inteiro vs. parcial — é a leitura mais natural de
   "até setembro, comparado com 2025" para uma comparação justa.
+
+## B13 — anexos (2026-10-11)
+
+- **`GET /arquivos/*` é a rota que o B2 deixou como placeholder** em
+  `LocalDiskStorage.obterUrl` (`/arquivos/<chave>`). Só exige estar autenticado —
+  não checa o escritório do dono do arquivo, porque a própria chave (sempre com um
+  `cuid`/`randomUUID`) funciona como credencial, exatamente como uma signed URL do
+  GCS: quem tem a chave acessa, quem não tem não adivinha. O controle de acesso por
+  escritório de verdade é feito uma camada acima, em `GET /anexos/:id/download`.
+- **`GET /anexos/:id/download` só redireciona (302) para `storage.obterUrl(...)`**,
+  nunca faz proxy do conteúdo — para o GCS isso já cai na signed URL (pedida pelo
+  card); para o local, cai no `/arquivos/*` acima. Um único código de rota cobre os
+  dois provedores do card.
+- **Anexo não guarda `contentType`.** Para não alterar o schema (o modelo só tem
+  `nomeArquivo`), o Content-Type do download é inferido pela extensão do nome do
+  arquivo (`lib/contentType.ts`) — suficiente para os formatos que o MVP usa
+  (PDF, PNG/JPEG, XLSX).
+- **Upload de anexo aceita PDF, PNG e JPEG** (`lib/upload.ts`, 10 MB) — guias/NFs
+  são sempre PDF, mas um comprovante de pagamento às vezes é print/foto do banco.
+- **Notificação só é criada quando o pagamento vem com comprovante anexado.**
+  `POST /solicitacoes/:id/pagamento` virou multipart (campo `comprovante`
+  opcional); continua aceitando o JSON puro de antes (o B9 já tinha testes assim)
+  porque o `multer.single(...)` não altera `req.body` quando o request não é
+  multipart. Sem comprovante, nenhuma `Notificacao` é criada — o comportamento do
+  B9 para esse fluxo não muda.
+- **`GET /notificacoes` não tem paginação nem filtro de "lida"** — o card só pede
+  listar; ESCRITORIO vê só as próprias, ANALISTA/GESTOR veem de todos (mesma regra
+  de escopo do B12). Marcar como lida fica para um card futuro, se vier a ser
+  pedido.

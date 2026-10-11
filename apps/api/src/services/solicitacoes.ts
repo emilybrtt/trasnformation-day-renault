@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Prisma, Semaforo, StatusSolicitacao, TipoFluxo } from '@prisma/client'
 import type { CriarSolicitacaoInput, LinhaLancamentoInput } from '@gavve/shared'
 import type { UsuarioAutenticado } from '../middleware/auth.js'
@@ -5,8 +6,10 @@ import { podeAcessarEscritorio } from '../middleware/escritorioScope.js'
 import { resolverDePara } from '../lib/dePara.js'
 import { ErroHttp, naoEncontrado, transicaoInvalida } from '../lib/erroHttp.js'
 import { registrarHistorico } from '../lib/historico.js'
+import { criarNotificacao } from '../lib/notificacoes.js'
 import { prisma } from '../lib/prisma.js'
 import { piorSemaforo, semaforoDaSolicitacao } from '../lib/semaforo.js'
+import { getStorage } from '../lib/storage/index.js'
 import { validarEAtualizarAlertas } from './validacoes.js'
 
 async function montarLinhas(linhas: LinhaLancamentoInput[], ano: number) {
@@ -267,10 +270,17 @@ export async function abrirChamado(usuario: UsuarioAutenticado, id: string, nume
   return solicitacao
 }
 
+export interface ComprovanteUpload {
+  buffer: Buffer
+  nomeArquivo: string
+  mimetype: string
+}
+
 export async function registrarPagamento(
   usuario: UsuarioAutenticado,
   id: string,
   dados: { dataPagamento: Date; numeroDocumentoLbs?: string },
+  comprovante?: ComprovanteUpload,
 ) {
   const atual = await buscarOuFalhar(id)
   if (atual.status !== 'CHAMADO_ABERTO') throw transicaoInvalida(atual.status, 'PAGO')
@@ -283,12 +293,30 @@ export async function registrarPagamento(
       numeroDocumentoLbs: dados.numeroDocumentoLbs ?? atual.numeroDocumentoLbs,
     },
   })
+
+  if (comprovante) {
+    const chave = `anexos/${id}/${randomUUID()}-${comprovante.nomeArquivo}`
+    await getStorage().salvar(chave, comprovante.buffer, comprovante.mimetype)
+    await prisma.anexo.create({
+      data: { solicitacaoId: id, tipo: 'COMPROVANTE', caminho: chave, nomeArquivo: comprovante.nomeArquivo },
+    })
+    await criarNotificacao({
+      escritorioId: atual.escritorioId,
+      solicitacaoId: id,
+      mensagem: `Comprovante de pagamento anexado à sua solicitação (pasta(s) ${atual.lancamentos.map((l) => l.pastaProjuris).join(', ')}).`,
+    })
+  }
+
   await registrarHistorico({
     entidade: 'Solicitacao',
     entidadeId: id,
     acao: 'registrar-pagamento',
     usuarioId: usuario.firebaseUid,
-    diff: { status: { de: atual.status, para: 'PAGO' }, dataPagamento: dados.dataPagamento.toISOString() },
+    diff: {
+      status: { de: atual.status, para: 'PAGO' },
+      dataPagamento: dados.dataPagamento.toISOString(),
+      comComprovante: Boolean(comprovante),
+    },
   })
   return solicitacao
 }
