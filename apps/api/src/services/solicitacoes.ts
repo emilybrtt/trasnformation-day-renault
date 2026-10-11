@@ -6,7 +6,8 @@ import { resolverDePara } from '../lib/dePara.js'
 import { ErroHttp, naoEncontrado, transicaoInvalida } from '../lib/erroHttp.js'
 import { registrarHistorico } from '../lib/historico.js'
 import { prisma } from '../lib/prisma.js'
-import { piorSemaforo } from '../lib/semaforo.js'
+import { piorSemaforo, semaforoDaSolicitacao } from '../lib/semaforo.js'
+import { validarEAtualizarAlertas } from './validacoes.js'
 
 async function montarLinhas(linhas: LinhaLancamentoInput[], ano: number) {
   return Promise.all(
@@ -19,6 +20,7 @@ async function montarLinhas(linhas: LinhaLancamentoInput[], ano: number) {
         valorPrincipal: linha.valorPrincipal,
         valorJurosCorrecao: linha.valorJurosCorrecao ?? 0,
         valorProvisaoProjuris: linha.valorProvisaoProjuris,
+        valorTotalInformado: linha.valorTotalInformado,
         tipoAcao: linha.tipoAcao,
         centroCusto: resolvido?.centroCusto,
         contaContabil: resolvido?.contaContabil,
@@ -93,7 +95,8 @@ function garantirAcesso(usuario: UsuarioAutenticado, escritorioId: string) {
 export async function buscarSolicitacao(usuario: UsuarioAutenticado, id: string) {
   const solicitacao = await buscarOuFalhar(id)
   garantirAcesso(usuario, solicitacao.escritorioId)
-  return { ...solicitacao, semaforo: piorSemaforo(solicitacao.lancamentos.map((l) => l.semaforo)) }
+  const alertasDaSolicitacao = solicitacao.alertas.filter((a) => !a.lancamentoId && !a.resolvidoEm)
+  return { ...solicitacao, semaforo: semaforoDaSolicitacao(solicitacao.lancamentos, alertasDaSolicitacao) }
 }
 
 export async function atualizarSolicitacao(
@@ -169,13 +172,16 @@ export async function listarSolicitacoes(usuario: UsuarioAutenticado, filtros: F
 
   const todos = await prisma.solicitacao.findMany({
     where,
-    include: { lancamentos: { select: { semaforo: true } } },
+    include: {
+      lancamentos: { select: { semaforo: true } },
+      alertas: { where: { lancamentoId: null, resolvidoEm: null }, select: { severidade: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
   const comSemaforo = todos.map((s) => ({
     ...s,
-    semaforo: piorSemaforo(s.lancamentos.map((l) => l.semaforo)),
+    semaforo: semaforoDaSolicitacao(s.lancamentos, s.alertas),
   }))
   const filtrados = filtros.semaforo ? comSemaforo.filter((s) => s.semaforo === filtros.semaforo) : comSemaforo
 
@@ -192,12 +198,13 @@ export async function enviarSolicitacao(usuario: UsuarioAutenticado, id: string)
   }
 
   const solicitacao = await prisma.solicitacao.update({ where: { id }, data: { status: 'EM_CONFERENCIA' } })
+  const alertas = await validarEAtualizarAlertas(id)
   await registrarHistorico({
     entidade: 'Solicitacao',
     entidadeId: id,
     acao: 'enviar',
     usuarioId: usuario.firebaseUid,
-    diff: { status: { de: atual.status, para: 'EM_CONFERENCIA' } },
+    diff: { status: { de: atual.status, para: 'EM_CONFERENCIA' }, alertas: alertas.map((a) => a.codigo) },
   })
   return solicitacao
 }

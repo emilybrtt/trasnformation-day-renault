@@ -50,6 +50,7 @@ export const linhaLancamentoSchema = z.object({
   valorPrincipal: z.number().positive('Valor principal deve ser maior que zero'),
   valorJurosCorrecao: z.number().min(0).default(0),
   valorProvisaoProjuris: z.number().min(0).optional(),
+  valorTotalInformado: z.number().min(0).optional(),
   tipoAcao: z.string().trim().min(1).optional(),
 })
 export type LinhaLancamentoInput = z.infer<typeof linhaLancamentoSchema>
