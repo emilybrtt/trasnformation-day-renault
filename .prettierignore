@@ -1,0 +1,8 @@
+dist
+node_modules
+coverage
+playwright-report
+test-results
+docs/refs
+docs/design/front-renault.html
+package-lock.json

@@ -6,9 +6,10 @@ instrução do briefing ("decida, registre aqui e siga").
 ## Bootstrap (2026-10-11)
 
 - **Ambiente sem Node.js/Java.** O sistema não tinha Node nem Java instalados. Instalei
-  Node 20 LTS via `nvm` (escopo do usuário, sem sudo) e symlinks em `~/.local/bin`
-  (já no PATH). O Java (necessário para o Firebase Auth Emulator) será resolvido do
-  mesmo jeito (JDK portátil, sem sudo) quando o B2 precisar dele.
+  Node 20 LTS via `nvm` (escopo do usuário, sem sudo) e Java 21 Temurin (JDK portátil
+  da Adoptium, também sem sudo), ambos com symlinks em `~/.local/bin` (já no PATH).
+  Validei localmente que `npx firebase emulators:exec --only auth --project demo-gavve
+  "..."` funciona igual ao CI.
 - **Trello em modo soft.** `TRELLO_KEY`/`TRELLO_TOKEN` não estão configurados no
   ambiente e o usuário avisou que vai configurar o board depois. Rodo tudo com
   `TRELLO_SOFT=1`: os comandos `node scripts/trello.mjs ...` avisam e seguem sem
@@ -26,7 +27,9 @@ instrução do briefing ("decida, registre aqui e siga").
   `docs/design/front-renault.html` (referência visual intacta, versionada). A estrutura
   de monorepo (`apps/api`, `apps/web`, `packages/shared`) será criada no card B1, como
   pede o briefing.
-- **Proteção da `main`.** Tentada via `gh api` no bootstrap, exigindo os checks
-  "Guardas", "Lint, tipos, testes e build" e "E2E (Playwright)", sem exigir revisão
-  aprovada e sem exigir o job "Auto-merge + Trello". Resultado registrado abaixo
-  (seção atualizada após a tentativa).
+- **Proteção da `main`.** Configurada com sucesso via `gh api` (tinha permissão de
+  admin): exige os checks "Guardas", "Lint, tipos, testes e build" e
+  "E2E (Playwright)", sem revisão aprovada obrigatória, sem exigir o job
+  "Auto-merge + Trello", sem force-push e sem deleção da branch. *Workflow
+  permissions* do repositório também configurado para "Read and write"
+  (`default_workflow_permissions: write`, `can_approve_pull_request_reviews: true`).

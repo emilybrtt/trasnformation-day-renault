@@ -1,0 +1,42 @@
+{
+  "name": "gavve",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n docker,firebase,api,web -c blue,yellow,green,magenta \"docker compose up\" \"firebase emulators:start --only auth\" \"npm run dev -w @gavve/api\" \"npm run dev -w @gavve/web\"",
+    "build": "npm run build -w @gavve/shared && npm run build -w @gavve/api && npm run build -w @gavve/web",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "npm run typecheck -w @gavve/shared && npm run typecheck -w @gavve/api && npm run typecheck -w @gavve/web",
+    "test": "vitest run",
+    "test:scripts": "node --test scripts/__tests__/*.test.mjs",
+    "test:e2e": "playwright test --pass-with-no-tests",
+    "db:migrate": "npm run db:migrate -w @gavve/api",
+    "db:deploy": "npm run db:deploy -w @gavve/api",
+    "db:seed": "npm run db:seed -w @gavve/api",
+    "demo:reset": "npm run demo:reset -w @gavve/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.11.0",
+    "@playwright/test": "^1.47.0",
+    "@typescript-eslint/eslint-plugin": "^8.6.0",
+    "@typescript-eslint/parser": "^8.6.0",
+    "concurrently": "^9.0.1",
+    "eslint": "^9.11.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.12",
+    "firebase-tools": "^13.17.0",
+    "globals": "^15.9.0",
+    "prettier": "^3.3.3",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.6.0",
+    "vitest": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
