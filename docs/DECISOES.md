@@ -315,3 +315,34 @@ instrução do briefing ("decida, registre aqui e siga").
   DEVOLVIDO/CANCELADO).
 - **Agregação em memória (JS), não SQL `GROUP BY` entre tabelas relacionadas** — meso
   padrão já usado desde o B6/B7, aceitável na escala do MVP (~200 registros).
+
+## B11 — assistente de relatórios (2026-10-11)
+
+- **`LlmProvider` ganha `escolherFerramenta`, não um `responderMensagem` que já devolve
+  texto final.** O modelo (Mock ou Gemini) só decide **qual** das 6 ferramentas
+  chamar e **com quais parâmetros** — quem executa a consulta e monta o texto da
+  resposta é sempre `services/agente.ts`, nunca o LLM. Isso é o que garante "sem SQL
+  livre" do card: o LLM nunca vê o banco, só a lista fixa de ferramentas.
+- **`GeminiProvider.escolherFerramenta` usa function calling de verdade** (`tools:
+  [{ functionDeclarations }]` + `res.functionCalls`), não um prompt pedindo JSON. O
+  `MockLlm` cobre o mesmo contrato com roteamento por palavras-chave/regex
+  (anos com 4 dígitos, nomes de mês, "1º/2º/3º/4º trimestre", "amarelo"/"vermelho"
+  etc.) — determinístico e testável sem nenhuma credencial, exigido pelas 4 perguntas
+  de exemplo do card.
+- **`services/dashboards.ts` (B12) ganhou `totalRealizado`, `topPastas` e
+  `pendencias`** para o B11 reutilizar como pedia o card, em vez de duplicar as
+  queries em `services/agente.ts` — este só formata `{ texto, visual }` em cima do
+  que o dashboard já calcula.
+- **Histórico limitado a 6 mensagens é truncamento no servidor (`slice(-6)`), não
+  validação que rejeita payloads maiores.** O schema compartilhado
+  (`enviarMensagemAgenteSchema`) aceita até 50 mensagens de histórico (só para não
+  aceitar payload arbitrariamente grande) — o cliente pode manter uma conversa mais
+  longa; o servidor só considera as últimas 6 ao decidir a ferramenta.
+- **`realizadoAteMes` é o nome da ferramenta do briefing, mas o parâmetro aceita um
+  intervalo `mesInicio..mesFim`, não só um "até".** A pergunta de exemplo "realizado
+  por ordem interna do 3º trimestre" não é cumulativa desde janeiro — é só
+  julho-setembro — então o parâmetro mais simples que atende os dois casos (cumulativo
+  "até setembro" e um trimestre isolado) é um intervalo, com `mesInicio` default 1.
+- **`comparativoAnual` compara os dois anos no mesmo intervalo de meses** (ex.:
+  jan-set em ambos), não ano inteiro vs. parcial — é a leitura mais natural de
+  "até setembro, comparado com 2025" para uma comparação justa.
