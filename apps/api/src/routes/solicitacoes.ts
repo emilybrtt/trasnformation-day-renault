@@ -8,8 +8,11 @@ import {
 import type { Semaforo, StatusSolicitacao, TipoFluxo } from '@prisma/client'
 import { Router } from 'express'
 import { assincrona } from '../lib/assincrona.js'
+import { getStorage } from '../lib/storage/index.js'
 import { auth, exige } from '../middleware/auth.js'
+import { gerarRateioXlsx } from '../services/rateio.js'
 import * as servico from '../services/solicitacoes.js'
+import { prisma } from '../lib/prisma.js'
 
 export const solicitacoesRouter = Router()
 
@@ -112,5 +115,27 @@ solicitacoesRouter.post(
     const dados = registrarPagamentoSchema.parse(req.body)
     const solicitacao = await servico.registrarPagamento(req.usuario!, req.params.id, dados)
     res.json(solicitacao)
+  }),
+)
+
+solicitacoesRouter.get(
+  '/solicitacoes/:id/rateio.xlsx',
+  auth,
+  exige('ANALISTA'),
+  assincrona(async (req, res) => {
+    const id = req.params.id
+    await servico.buscarSolicitacao(req.usuario!, id) // 404 se não existir
+    const buffer = await gerarRateioXlsx(id)
+
+    const chave = `rateio/${id}.xlsx`
+    await getStorage().salvar(chave, buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    await prisma.anexo.deleteMany({ where: { solicitacaoId: id, tipo: 'RATEIO_XLSX' } })
+    await prisma.anexo.create({
+      data: { solicitacaoId: id, tipo: 'RATEIO_XLSX', caminho: chave, nomeArquivo: 'rateio.xlsx' },
+    })
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', 'attachment; filename="rateio.xlsx"')
+    res.send(buffer)
   }),
 )

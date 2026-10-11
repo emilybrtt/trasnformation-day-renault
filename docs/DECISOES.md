@@ -212,3 +212,39 @@ instrução do briefing ("decida, registre aqui e siga").
   (evita marcar como atípico algo só porque é o primeiro registro daquele tipo).
 - **Teste por regra**, todos de integração real contra o Postgres
   (`apps/api/src/services/__tests__/validacoes.test.ts`), como pedia o card.
+
+## B8 — Excel de rateio (2026-10-11)
+
+- **Correção de monorepo: `@types/node` duplicado.** `apps/api` e `apps/web` fixavam
+  `@types/node@^24.13.3`, mas alguma dependência transitiva (provavelmente do
+  `firebase-tools`/`vite`) já tinha puxado uma versão `^26` para a raiz — o npm não
+  conseguia dedupar e instalava **duas** cópias. Isso virou dois tipos globais
+  `Buffer`/`Uint8Array` incompatíveis entre si (erro só apareceu agora porque o B8 foi
+  o primeiro card a usar uma lib — `exceljs` — cujos `.d.ts` referenciam `Buffer`
+  diretamente). Corrigido fixando todos em `^20.14.0` (a major do Node usada em
+  dev/CI) e adicionando `overrides["@types/node"]` na raiz para garantir uma única
+  cópia. Confirmado com `rm -rf node_modules && npm install` do zero.
+- **`exceljs` + TypeScript 6 ainda têm uma pequena divergência de tipagem residual**
+  no `Workbook.xlsx.load(buffer)` (o `.d.ts` do exceljs não usa o `Buffer` genérico
+  que esta versão do TS exige) — um `@ts-expect-error` pontual e comentado no teste,
+  já que o valor é idêntico em runtime.
+- **REFERENCIA vs ATRIBUIÇÃO.** No exemplo do briefing ("40 Deb 681580 ref 541047
+  ZDOACONPIF24 GI85031...") o "ref" é um número diferente da pasta Projuris — mapeei
+  `REFERENCIA = numeroDocumentoLbs` (quando existir) e `ATRIBUIÇÃO = pastaProjuris`,
+  já que o briefing só confirma explicitamente que "ATRIBUIÇÃO = nº da pasta".
+- **TEXTO CAB. DOCUMENTO / REFERENCIA da linha de crédito (31/Cred) no RBS_DD** não
+  têm um valor explícito no briefing (só o caso Anexo V/baixa de adiantamento diz
+  "REFERENCIA e TEXTO CAB. = Baixa de adiantamento `<escritório>`"). Para RBS_DD usei
+  `TEXTO CAB. DOCUMENTO = "Pagamento <nome do fornecedor>"` e `REFERENCIA =
+  numeroDocumentoLbs` — uma extrapolação razoável, documentada aqui para o caso de
+  o SSC esperar outro formato.
+- **DT LANÇAMENTO = data de pagamento (ou hoje, se ainda não paga); DT DO DOCUMENTO =
+  `dataDocumento`.** Não especificado explicitamente no briefing; essa é a leitura
+  mais natural dos nomes dos campos SAP.
+- **O rateio é salvo como anexo a cada geração** (substitui o anterior — só fica um
+  `RATEIO_XLSX` por solicitação), via `StorageProvider` do B2; a rota é só para
+  `ANALISTA` (consistente com a tela "Chamado pronto" do front, seção 4.2).
+- **Teste de fixture** reconstrói exatamente o exemplo numérico do próprio briefing
+  (seção B9: pasta 14945, R$ 557.380,92 + R$ 208.582,40 = R$ 765.963,32, conta
+  681580/686242, GI85031/GI85030, ZDOACONPIF24) — não veio de `docs/refs/`, é o
+  exemplo genérico que já estava no prompt.
