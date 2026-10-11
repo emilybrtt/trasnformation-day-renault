@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { GuiaExtraida, NfExtraida } from '../extracao.js'
+import { DECLARACOES_FERRAMENTAS } from '../ferramentas.js'
 import { MockLlm } from '../mockLlm.js'
 
 describe('MockLlm', () => {
@@ -36,6 +37,45 @@ describe('MockLlm', () => {
       expect(dados.nomePrestador).toBe('Escritório Gama Advogados (fictício)')
       expect(dados.valorServico).toBe(6200)
       expect(dados.valorLiquido).toBe(5700)
+    })
+  })
+
+  describe('escolherFerramenta (roteamento por palavras-chave, B11)', () => {
+    const llm = new MockLlm()
+
+    it('"Quanto pagamos de condenações em 2026 até setembro, comparado com 2025?" → comparativoAnual', async () => {
+      const escolha = await llm.escolherFerramenta(
+        'Quanto pagamos de condenações em 2026 até setembro, comparado com 2025?',
+        [],
+        DECLARACOES_FERRAMENTAS,
+      )
+      expect(escolha).toEqual({
+        ferramenta: 'comparativoAnual',
+        parametros: { anoA: 2026, anoB: 2025, mesFim: 9, motivo: 'CONDENAÇÃO' },
+      })
+    })
+
+    it('"Qual a média de honorários por área este ano?" → mediaHonorarios', async () => {
+      const escolha = await llm.escolherFerramenta('Qual a média de honorários por área este ano?', [], DECLARACOES_FERRAMENTAS)
+      expect(escolha?.ferramenta).toBe('mediaHonorarios')
+      expect(escolha?.parametros.agruparPor).toBe('area')
+      expect(escolha?.parametros.ano).toBe(new Date().getFullYear())
+    })
+
+    it('"Quais solicitações estão em amarelo ou vermelho agora?" → pendencias', async () => {
+      const escolha = await llm.escolherFerramenta('Quais solicitações estão em amarelo ou vermelho agora?', [], DECLARACOES_FERRAMENTAS)
+      expect(escolha).toEqual({ ferramenta: 'pendencias', parametros: {} })
+    })
+
+    it('"Gere o realizado por ordem interna do 3º trimestre" → realizadoAteMes', async () => {
+      const escolha = await llm.escolherFerramenta('Gere o realizado por ordem interna do 3º trimestre', [], DECLARACOES_FERRAMENTAS)
+      expect(escolha?.ferramenta).toBe('realizadoAteMes')
+      expect(escolha?.parametros).toMatchObject({ mesInicio: 7, mesFim: 9, agruparPor: 'ordemInterna' })
+    })
+
+    it('devolve null quando nenhuma palavra-chave conhecida aparece', async () => {
+      const escolha = await llm.escolherFerramenta('Qual é a capital da França?', [], DECLARACOES_FERRAMENTAS)
+      expect(escolha).toBeNull()
     })
   })
 })

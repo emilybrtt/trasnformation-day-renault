@@ -1,6 +1,7 @@
 import type { Prisma, StatusSolicitacao } from '@prisma/client'
 import ExcelJS from 'exceljs'
 import { prisma } from '../lib/prisma.js'
+import { semaforoDaSolicitacao } from '../lib/semaforo.js'
 
 export interface FiltrosDashboard {
   de?: Date
@@ -53,6 +54,58 @@ async function lancamentosRealizados(filtros: FiltrosDashboard) {
     },
     include: { solicitacao: { select: { dataPagamento: true, tipoFluxo: true } } },
   })
+}
+
+/** Total realizado no período filtrado — usado pelo KPI e reutilizado pelas
+ * ferramentas `totalPago`/`comparativoAnual` do assistente (B11). */
+export async function totalRealizado(filtros: FiltrosDashboard): Promise<number> {
+  const solicitacoes = await solicitacoesRealizadas(filtros)
+  return Number(solicitacoes.reduce((acc, s) => acc + Number(s.valorTotal), 0).toFixed(2))
+}
+
+/** As pastas Projuris com maior valor total realizado — ferramenta `topPastas` (B11). */
+export async function topPastas(filtros: FiltrosDashboard, limite = 5) {
+  const lancamentos = await prisma.lancamento.findMany({
+    where: {
+      area: filtros.area,
+      motivo: filtros.motivo,
+      solicitacao: { status: 'PAGO', escritorioId: filtros.escritorioId, dataPagamento: filtroDataPagamento(filtros) },
+    },
+    select: { pastaProjuris: true, valorPrincipal: true, valorJurosCorrecao: true },
+  })
+  const mapa = new Map<string, number>()
+  for (const l of lancamentos) {
+    const valor = Number(l.valorPrincipal) + Number(l.valorJurosCorrecao)
+    mapa.set(l.pastaProjuris, (mapa.get(l.pastaProjuris) ?? 0) + valor)
+  }
+  return [...mapa.entries()]
+    .map(([pastaProjuris, total]) => ({ pastaProjuris, total: Number(total.toFixed(2)) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limite)
+}
+
+/** Solicitações com semáforo AMARELO ou VERMELHO agora (não filtra por "realizado" —
+ * pendência é sobre o estado atual, não sobre pagamentos já feitos). Ferramenta
+ * `pendencias` (B11). */
+export async function pendencias(filtros: Pick<FiltrosDashboard, 'escritorioId'> = {}) {
+  const solicitacoes = await prisma.solicitacao.findMany({
+    where: { status: { notIn: ['PAGO', 'CANCELADO'] }, escritorioId: filtros.escritorioId },
+    include: {
+      escritorio: { select: { nome: true } },
+      lancamentos: { select: { semaforo: true, pastaProjuris: true } },
+      alertas: { where: { lancamentoId: null, resolvidoEm: null }, select: { severidade: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  return solicitacoes
+    .map((s) => ({
+      id: s.id,
+      escritorio: s.escritorio.nome,
+      status: s.status,
+      pastas: s.lancamentos.map((l) => l.pastaProjuris),
+      semaforo: semaforoDaSolicitacao(s.lancamentos, s.alertas),
+    }))
+    .filter((s) => s.semaforo === 'AMARELO' || s.semaforo === 'VERMELHO')
 }
 
 export async function kpis(filtros: FiltrosDashboard) {

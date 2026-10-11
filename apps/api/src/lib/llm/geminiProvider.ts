@@ -1,20 +1,47 @@
 import { GoogleGenAI } from '@google/genai'
 import type { DadosExtraidos, TipoDocumentoExtracao } from './extracao.js'
+import type { DeclaracaoFerramenta, EscolhaFerramenta, MensagemAgente, ParametroFerramenta } from './ferramentas.js'
 import type { LlmProvider } from './types.js'
 
 export type GeminiContents = string | Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>
+
+export interface GeminiFunctionDeclaration {
+  name: string
+  description: string
+  parameters: {
+    type: 'OBJECT'
+    properties: Record<string, { type: 'STRING' | 'NUMBER'; description: string; enum?: readonly string[] }>
+  }
+}
+
+export interface GeminiTool {
+  functionDeclarations: GeminiFunctionDeclaration[]
+}
 
 export interface GeminiClient {
   models: {
     generateContent(args: {
       model: string
       contents: GeminiContents
-      config?: { responseMimeType?: string }
+      config?: { responseMimeType?: string; tools?: GeminiTool[] }
     }): Promise<{
       text?: string
       usageMetadata?: { totalTokenCount?: number }
+      functionCalls?: Array<{ name: string; args: Record<string, unknown> }>
     }>
   }
+}
+
+function paraTipoGemini(parametro: ParametroFerramenta): 'STRING' | 'NUMBER' {
+  return parametro.tipo === 'number' ? 'NUMBER' : 'STRING'
+}
+
+function paraDeclaracaoGemini(ferramenta: DeclaracaoFerramenta): GeminiFunctionDeclaration {
+  const properties: GeminiFunctionDeclaration['parameters']['properties'] = {}
+  for (const [nome, parametro] of Object.entries(ferramenta.parametros)) {
+    properties[nome] = { type: paraTipoGemini(parametro), description: parametro.descricao, enum: parametro.enum }
+  }
+  return { name: ferramenta.nome, description: ferramenta.descricao, parameters: { type: 'OBJECT', properties } }
 }
 
 export interface GeminiProviderOptions {
@@ -78,6 +105,28 @@ export class GeminiProvider implements LlmProvider {
     } catch {
       return {}
     }
+  }
+
+  /** Function calling de verdade do Gemini (B11): devolve ao modelo a lista fixa de
+   * ferramentas (sem SQL livre) e deixa ele escolher qual chamar e com quais parâmetros.
+   * Quem efetivamente executa a consulta é `services/agente.ts`, nunca este provider. */
+  async escolherFerramenta(
+    mensagem: string,
+    historico: MensagemAgente[],
+    ferramentas: DeclaracaoFerramenta[],
+  ): Promise<EscolhaFerramenta | null> {
+    const contents = [
+      ...historico.map((m) => ({ text: `${m.papel}: ${m.texto}` })),
+      { text: mensagem },
+    ]
+    const res = await this.client.models.generateContent({
+      model: this.model,
+      contents,
+      config: { tools: [{ functionDeclarations: ferramentas.map(paraDeclaracaoGemini) }] },
+    })
+    this.logarTokens(res.usageMetadata)
+    const chamada = res.functionCalls?.[0]
+    return chamada ? { ferramenta: chamada.name, parametros: chamada.args } : null
   }
 
   private logarTokens(usageMetadata?: { totalTokenCount?: number }) {
