@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# segredos
+.env
+.env.*
+!.env.example
+
+# relatórios e artefatos de teste
+playwright-report/
+test-results/
+blob-report/
+
+# documentos reais da Renault (dados pessoais / confidenciais — nunca versionar)
+docs/refs/
+
+# uploads locais (storage em disco, fallback do GCS)
+apps/api/uploads/
+uploads/
+
+# diversos
+.DS_Store
+*.log
+.turbo/

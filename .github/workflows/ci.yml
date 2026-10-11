@@ -1,0 +1,197 @@
+# CI do MVP GAVVE — roda em todo PR para a main.
+# Se tudo passar, faz o merge (squash) sozinho e move o card do Trello para "Done".
+#
+# Pré-requisitos no GitHub (Settings):
+#  - Secrets: TRELLO_KEY, TRELLO_TOKEN
+#  - Actions > General > Workflow permissions: "Read and write permissions"
+#  - Branch protection da main: exigir os checks "Guardas", "Lint, tipos, testes e build" e "E2E (Playwright)".
+#    NÃO exigir o job "Auto-merge + Trello" nem aprovação de revisor (o bot não consegue se auto-aprovar).
+#  - Para segurar um PR sem merge automático: marque como draft ou aplique a label "nao-mergear".
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DATABASE_URL: postgresql://gavve:gavve@localhost:5432/gavve_test
+  LLM_PROVIDER: mock
+  STORAGE_PROVIDER: local
+  AUTH_MODE: emulator
+  FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+  GCLOUD_PROJECT: demo-gavve
+  TRELLO_BOARD_ID: 6ac97e82108abc0c42a17958
+
+jobs:
+  trello-review:
+    name: Trello → Review
+    if: github.event_name == 'pull_request' && github.event.action == 'opened' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Mover card para Review
+        continue-on-error: true
+        env:
+          TRELLO_KEY: ${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_SOFT: '1'
+          BRANCH: ${{ github.head_ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if CODE=$(node scripts/trello.mjs code-from-branch "$BRANCH"); then
+            node scripts/trello.mjs review "$CODE" --pr "$PR_URL"
+          else
+            echo "Branch sem código de card — nada a fazer no Trello"
+          fi
+
+  guard:
+    name: Guardas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: docs/refs não pode ser versionado (dados reais)
+        run: |
+          if git ls-files | grep -q '^docs/refs/'; then
+            echo "::error::docs/refs/ contém documentos reais da Renault e não pode estar no repositório"
+            exit 1
+          fi
+      - name: Nada de .env commitado
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.local$|\.production$)'; then
+            echo "::error::Arquivo .env versionado. Use apenas .env.example"
+            exit 1
+          fi
+      - name: Varredura de segredos (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  checks:
+    name: Lint, tipos, testes e build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gavve
+          POSTGRES_PASSWORD: gavve
+          POSTGRES_DB: gavve_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gavve"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v4 # o Firebase Auth Emulator precisa de Java
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Testes dos scripts de automação
+        run: npm run test:scripts
+      - name: Migrations
+        run: npm run db:deploy
+      - name: Testes unitários e de API (com emulador de Auth)
+        run: npx firebase emulators:exec --only auth --project "$GCLOUD_PROJECT" "npm test"
+      - run: npm run build
+
+  e2e:
+    name: E2E (Playwright)
+    needs: checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gavve
+          POSTGRES_PASSWORD: gavve
+          POSTGRES_DB: gavve_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gavve"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      - name: Roteiro da demo (e2e)
+        run: npx firebase emulators:exec --only auth --project "$GCLOUD_PROJECT" "npm run test:e2e"
+      - name: Relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  automerge:
+    name: Auto-merge + Trello
+    needs: [guard, checks, e2e]
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'nao-mergear')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Merge (squash) e apagar a branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+      # Merges feitos com GITHUB_TOKEN não disparam outros workflows,
+      # por isso o card é movido para Done aqui mesmo, logo após o merge.
+      - name: Mover card para Done
+        continue-on-error: true
+        env:
+          TRELLO_KEY: ${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          TRELLO_SOFT: '1'
+          BRANCH: ${{ github.head_ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if CODE=$(node scripts/trello.mjs code-from-branch "$BRANCH"); then
+            node scripts/trello.mjs "done" "$CODE" --pr "$PR_URL"
+          else
+            echo "Branch sem código de card — nada a fazer no Trello"
+          fi
