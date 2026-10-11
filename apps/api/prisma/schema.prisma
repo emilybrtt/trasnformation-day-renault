@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Perfil {
+  ESCRITORIO
+  ANALISTA
+  GESTOR
+}
+
+enum TipoFluxo {
+  ANEXO_V_ADIANTAMENTO
+  ANEXO_V_BAIXA
+  ANEXO_V_REEMBOLSO
+  RC_HONORARIOS_NF
+  RBS_DD_GUIA
+}
+
+enum StatusSolicitacao {
+  RASCUNHO
+  ENVIADO
+  EM_CONFERENCIA
+  DEVOLVIDO
+  APROVADO
+  CHAMADO_ABERTO
+  PAGO
+  CANCELADO
+}
+
+enum FormaPagamento {
+  BOLETO
+  TED
+  DEPOSITO_JUDICIAL
+}
+
+enum TipoAnexo {
+  GUIA
+  NF
+  RATEIO_XLSX
+  COMPROVANTE
+  OUTRO
+}
+
+enum Severidade {
+  AMARELO
+  VERMELHO
+}
+
+enum Semaforo {
+  VERDE
+  AMARELO
+  VERMELHO
+}
+
+model Usuario {
+  firebaseUid   String   @id
+  nome          String
+  email         String   @unique
+  perfil        Perfil
+  escritorioId  String?
+  escritorio    Escritorio? @relation(fields: [escritorioId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  solicitacoesCriadas Solicitacao[] @relation("SolicitacaoCriadoPor")
+  alertasResolvidos   Alerta[]      @relation("AlertaResolvidoPor")
+  comentarios         Comentario[]
+  historico           Historico[]
+
+  @@index([escritorioId])
+}
+
+model Escritorio {
+  id        String   @id @default(cuid())
+  nome      String
+  cnpj      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios      Usuario[]
+  solicitacoes  Solicitacao[]
+}
+
+model Fornecedor {
+  id         String   @id @default(cuid())
+  codigoSap  String   @unique
+  nome       String
+  cnpj       String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  solicitacoes Solicitacao[]
+}
+
+model DeParaContabil {
+  id            String   @id @default(cuid())
+  area          String
+  motivo        String
+  centroCusto   String
+  contaContabil String
+  ordemInterna  String?
+  ano           Int
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([area, motivo, ano])
+}
+
+model Solicitacao {
+  id                    String            @id @default(cuid())
+  tipoFluxo             TipoFluxo
+  escritorioId          String
+  escritorio            Escritorio        @relation(fields: [escritorioId], references: [id])
+  fornecedorId          String?
+  fornecedor            Fornecedor?       @relation(fields: [fornecedorId], references: [id])
+  criadoPorId           String
+  criadoPor             Usuario           @relation("SolicitacaoCriadoPor", fields: [criadoPorId], references: [firebaseUid])
+  status                StatusSolicitacao @default(RASCUNHO)
+  numeroChamado         String?
+  numeroDocumentoLbs    String?
+  dataDocumento         DateTime
+  dataPrevistaPagamento DateTime?
+  dataPagamento         DateTime?
+  formaPagamento        FormaPagamento
+  valorTotal            Decimal           @db.Decimal(14, 2)
+  observacao            String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  lancamentos Lancamento[]
+  anexos      Anexo[]
+  alertas     Alerta[]
+  comentarios Comentario[]
+
+  @@index([escritorioId])
+  @@index([status])
+}
+
+model Lancamento {
+  id                  String      @id @default(cuid())
+  solicitacaoId       String
+  solicitacao         Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  pastaProjuris       String
+  area                String
+  motivo              String
+  valorPrincipal      Decimal     @db.Decimal(14, 2)
+  valorJurosCorrecao  Decimal     @db.Decimal(14, 2) @default(0)
+  centroCusto         String
+  contaContabil       String
+  ordemInterna        String?
+  semaforo            Semaforo    @default(VERDE)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  alertas Alerta[]
+
+  @@index([solicitacaoId])
+  @@index([pastaProjuris])
+}
+
+model Anexo {
+  id             String      @id @default(cuid())
+  solicitacaoId  String
+  solicitacao    Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  tipo           TipoAnexo
+  caminho        String
+  nomeArquivo    String
+  dadosExtraidos Json?
+  createdAt      DateTime    @default(now())
+
+  @@index([solicitacaoId])
+}
+
+model Alerta {
+  id             String      @id @default(cuid())
+  solicitacaoId  String
+  solicitacao    Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  lancamentoId   String?
+  lancamento     Lancamento? @relation(fields: [lancamentoId], references: [id], onDelete: Cascade)
+  codigo         String
+  severidade     Severidade
+  mensagem       String
+  resolvidoPorId String?
+  resolvidoPor   Usuario?    @relation("AlertaResolvidoPor", fields: [resolvidoPorId], references: [firebaseUid])
+  resolvidoEm    DateTime?
+  justificativa  String?
+  createdAt      DateTime    @default(now())
+
+  @@index([solicitacaoId])
+  @@index([lancamentoId])
+}
+
+model Comentario {
+  id            String      @id @default(cuid())
+  solicitacaoId String
+  solicitacao   Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  autorId       String
+  autor         Usuario     @relation(fields: [autorId], references: [firebaseUid])
+  texto         String
+  createdAt     DateTime    @default(now())
+
+  @@index([solicitacaoId])
+}
+
+model Historico {
+  id          String   @id @default(cuid())
+  entidade    String
+  entidadeId  String
+  acao        String
+  usuarioId   String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [firebaseUid])
+  diff        Json
+  createdAt   DateTime @default(now())
+
+  @@index([entidade, entidadeId])
+}
+
+model ConfiguracaoChamado {
+  id                 String   @id @default(cuid())
+  empresaAprovadora  String
+  empresaConsumidora String
+  nomeSolicitante    String
+  naturezaGasto      String
+  classificacao      String
+  alocacao           String
+  ceCuAprovador      String
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
