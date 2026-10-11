@@ -173,3 +173,12 @@ instrução do briefing ("decida, registre aqui e siga").
   `Solicitacao.semaforo` (só `Lancamento.semaforo`, que é persistido). O filtro
   `semaforo` em `GET /solicitacoes` por isso é aplicado em memória, não no SQL —
   aceitável na escala do MVP (~200 registros).
+
+- **Correção de CI no B6:** `packages/shared` precisava de `npm run build` antes de
+  qualquer workspace poder importar `@gavve/shared` (seu `main`/`types` apontam para
+  `dist/`). Isso passou despercebido até o B6 porque foi o primeiro card a de fato
+  importar o pacote de um outro workspace — localmente eu tinha buildado manualmente
+  sem perceber que o `npm ci` do CI não faria isso. Corrigido com um `postinstall: "npm
+  run build"` em `packages/shared/package.json` (mesmo padrão já usado no
+  `prisma generate` do `apps/api`). Confirmei localmente com `rm -rf node_modules && npm
+  ci` do zero.
