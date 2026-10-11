@@ -1,1 +1,48 @@
 @import 'tailwindcss';
+
+/* Paleta/tipografia extraídas de docs/design/front-renault.html (F9) — mesmo
+   visual do mockup, mas como tokens CSS reusados por utilitários Tailwind
+   (`bg-[var(--accent)]` etc.), não uma cópia 1:1 do CSS bespoke do mockup. */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f4f1;
+  --surface-2: #e8e8e4;
+  --ink: #000000;
+  --ink-2: #2b2b2b;
+  --muted: #5e6166;
+  --line: #d9d9d6;
+  --line-2: #bbbcbc;
+  --accent: #efdf00;
+  --on-accent: #000000;
+  --ok: #0b7a3b;
+  --on-ok: #ffffff;
+  --ok-soft: #e2f1e7;
+  --ok-ink: #0b6a33;
+  --bad: #c8102e;
+  --on-bad: #ffffff;
+  --bad-soft: #fbe7ea;
+  --bad-ink: #a50d26;
+  --warn: #efdf00;
+  --warn-ink: #4a4600;
+  --warn-soft: #fbf8d8;
+  --rail: #000000;
+  --rail-ink: #ffffff;
+  --rail-muted: #888b8d;
+  --f-display: 'Lexend', 'Arial', sans-serif;
+  --f-body: 'Fira Sans', 'Arial', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+}
+
+body {
+  font-family: var(--f-body);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.f-display {
+  font-family: var(--f-display);
+}
+
+.f-mono {
+  font-family: var(--f-mono);
+}

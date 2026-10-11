@@ -28,3 +28,19 @@ listasRouter.get(
     res.json(linhas)
   }),
 )
+
+// Lista de referência para o autocomplete de fornecedor no front (F9) — só
+// leitura, mesmo espírito de /listas e /de-para.
+listasRouter.get(
+  '/fornecedores',
+  auth,
+  assincrona(async (req, res) => {
+    const busca = (req.query.busca as string | undefined)?.trim()
+    const fornecedores = await prisma.fornecedor.findMany({
+      where: busca ? { nome: { contains: busca, mode: 'insensitive' } } : undefined,
+      orderBy: { nome: 'asc' },
+      take: 20,
+    })
+    res.json(fornecedores)
+  }),
+)
