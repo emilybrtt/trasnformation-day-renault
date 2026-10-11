@@ -16,3 +16,5 @@ credenciais (`TRELLO_KEY`/`TRELLO_TOKEN`) estiverem disponíveis.
 | B8 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/8 |
 | B9 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/9 |
 | B10 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/10 |
+| B12 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/11 |
+| B11 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/12 |
