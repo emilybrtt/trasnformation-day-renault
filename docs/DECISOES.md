@@ -70,3 +70,48 @@ instrução do briefing ("decida, registre aqui e siga").
 - **Migração gerada e testada localmente** com Postgres real via `docker compose`
   (`prisma migrate dev --name init`) e também `prisma migrate deploy` contra um banco
   limpo (`gavve_test`), replicando exatamente o que o CI faz.
+
+## B4 — seed de demonstração (2026-10-11)
+
+- **`Lancamento.centroCusto`/`contaContabil` passaram a ser opcionais** (nova
+  migration `20261011152225_lancamento_contabil_opcional`), para representar o caso
+  "sem de-para encontrado" (`DE_PARA_INEXISTENTE`) sem violar NOT NULL. `ordemInterna`
+  já era opcional desde o B3.
+- **De-para de 2026 é extrapolado ficticiamente.** O briefing só dá uma tabela sem
+  coluna de ano. Segui 2025 com os códigos reais do briefing e, para 2026, troquei os
+  2 últimos caracteres da ordem interna por "26" (ex.: `ZDOA00429016` → `ZDOA00429026`,
+  `ZDOACONPIF24` → `ZDOACONPIF26`) só para a demo mostrar a "zedoa" mudando de ano —
+  não é um código real da Renault para 2026.
+- **Seed é determinístico (RNG com seed fixa) e "recria do zero".** `db:seed` apaga
+  todas as `Solicitacao` (cascata) antes de regerar — assim `demo:reset` sempre produz
+  os mesmos ~197 lançamentos, incluindo os 5 casos propositais, o que ajuda a manter
+  screenshots/roteiro de demo estáveis (Fase D). O cadastro de referência (de-para,
+  fornecedores, escritórios, usuários) usa upsert por chave fixa, então sobrevive a
+  reexecuções sem duplicar.
+- **Fornecedores fictícios claramente marcados "(DEMO)"/"(FICTÍCIO)"** para não
+  parecerem tribunais reais com CNPJs errados. CNPJs fictícios gerados com dígito
+  verificador válido (algoritmo padrão), para não quebrar uma eventual validação de
+  CNPJ futura.
+- **Usuários "seed-escritorio-beta/gama" não têm login real no Firebase** — só
+  existem no Postgres para satisfazer a FK `criadoPorId` dos lançamentos históricos
+  desses escritórios fictícios. Só os 3 usuários demo (`demo-escritorio`,
+  `demo-analista`, `demo-gestor`) têm conta de verdade no Auth Emulator (criada pelo
+  `scripts/create-users.ts` do B2).
+- **Interpretação dos valores por motivo** (briefing não detalha todas as
+  combinações): `ACORDO`/`PROJETO SAC` → R$ 3.000–110.000 com juros de 1–60%;
+  `CONDENAÇÃO/CUSTAS` → 50% das vezes como "custas" (R$ 2–5.000, sem juros) e 50%
+  como "condenação" (R$ 3.000–150.000, com juros de 1–60%); `CONDENAÇÃO` (PIF/PDV) →
+  mesma faixa de condenação.
+- **Normalização dos motivos do dropdown** (ex.: "Multa", "Depósito Judicial" →
+  bucket CONDENAÇÃO/CUSTAS da área) fica para o B6/B7 — o seed só usa os 6
+  pares área+motivo canônicos da tabela de de-para, para os lançamentos aleatórios
+  resolverem de verdade.
+- **PDFs fictícios em `docs/demo-pdfs/`** (3 guias + 2 NFs, gerados com `pdfkit` via
+  `npm run demo:gerar-pdfs`) usam labels em português fixas ("Beneficiário:", "Valor:"
+  etc.) — o extrator do B10 (`MockLlm`) vai depender desse formato exato por regex.
+  Os valores de `guia-1.pdf` e `guia-2.pdf` foram escolhidos para coincidir com os
+  casos propositais 1 e 3 do seed.
+- **`tsconfig.scripts.json` novo** — os scripts `.ts` fora dos workspaces
+  (`scripts/*.ts`, `apps/api/prisma/seed.ts`) não eram cobertos por `npm run
+  typecheck` até agora (gap que já existia desde o B2 com `create-users.ts`); agora
+  `npm run typecheck` também roda `tsc -p tsconfig.scripts.json` sobre eles.
