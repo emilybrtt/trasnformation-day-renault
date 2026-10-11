@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { ZodError } from 'zod'
 import { ErroHttp } from './lib/erroHttp.js'
 import { alertasRouter } from './routes/alertas.js'
+import { chamadoRouter } from './routes/chamado.js'
 import { listasRouter } from './routes/listas.js'
 import { meRouter } from './routes/me.js'
 import { solicitacoesRouter } from './routes/solicitacoes.js'
@@ -21,6 +22,7 @@ export function createApp() {
   app.use(listasRouter)
   app.use(solicitacoesRouter)
   app.use(alertasRouter)
+  app.use(chamadoRouter)
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {

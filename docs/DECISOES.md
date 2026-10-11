@@ -248,3 +248,27 @@ instrução do briefing ("decida, registre aqui e siga").
   (seção B9: pasta 14945, R$ 557.380,92 + R$ 208.582,40 = R$ 765.963,32, conta
   681580/686242, GI85031/GI85030, ZDOACONPIF24) — não veio de `docs/refs/`, é o
   exemplo genérico que já estava no prompt.
+
+## B9 — chamado pronto + envio simulado (2026-10-11)
+
+- **"CeCu Consumidor", "ZEDOA" e "Conta Contábil" vêm do lançamento, não da
+  configuração fixa.** O briefing lista "CeCu Aprovador `GI52000`" com valor fixo,
+  mas não dá um valor fixo para "CeCu Consumidor" — faz sentido, já que esse é
+  justamente o centro de custo que o de-para resolve por Área+Motivo (varia por
+  lançamento). Mesma lógica para ZEDOA (= `ordemInterna`) e Conta Contábil. Quando a
+  solicitação tem mais de um lançamento com de-para diferente, uso o **primeiro**
+  lançamento — simplificação para o MVP, documentada aqui.
+- **"Descrição" (entre Classificação e Alocação) não tem valor fixo no briefing** —
+  usei `observacao` da solicitação como descrição, caindo para a lista de motivos se
+  estiver vazia.
+- **"Motivo da demanda" e o título (`<Motivo> <dd/mm>`)** usam o motivo do primeiro
+  lançamento (ou a lista de motivos únicos, se houver mais de um).
+- **`IntegracaoLbs`/`MockLbs` não tem (e não deve ter) implementação real** — a
+  integração com o portal SSC/LBS é sempre simulada, por regra explícita do
+  briefing. A interface existe só por organização/testabilidade.
+- **`LBS_MOCK_DELAY_MS`** (variável de ambiente, não documentada no `.env.example`
+  por ser só para teste) permite encurtar o delay de 1,5s do mock nos testes
+  automatizados sem mudar o comportamento em produção/demo.
+- **`POST /integracoes/lbs/enviar/:id` reaproveita `abrirChamado` do B6**: o
+  "envio simulado" só gera o número e delega a transição de estado (`APROVADO` →
+  `CHAMADO_ABERTO`) para a função que já existia, sem duplicar a regra.
