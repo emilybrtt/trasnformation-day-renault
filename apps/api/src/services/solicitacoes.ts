@@ -1,0 +1,315 @@
+import type { Prisma, Semaforo, StatusSolicitacao, TipoFluxo } from '@prisma/client'
+import type { CriarSolicitacaoInput, LinhaLancamentoInput } from '@gavve/shared'
+import type { UsuarioAutenticado } from '../middleware/auth.js'
+import { podeAcessarEscritorio } from '../middleware/escritorioScope.js'
+import { resolverDePara } from '../lib/dePara.js'
+import { ErroHttp, naoEncontrado, transicaoInvalida } from '../lib/erroHttp.js'
+import { registrarHistorico } from '../lib/historico.js'
+import { prisma } from '../lib/prisma.js'
+import { piorSemaforo } from '../lib/semaforo.js'
+
+async function montarLinhas(linhas: LinhaLancamentoInput[], ano: number) {
+  return Promise.all(
+    linhas.map(async (linha) => {
+      const resolvido = await resolverDePara(linha.area, linha.motivo, ano)
+      return {
+        pastaProjuris: linha.pastaProjuris,
+        area: linha.area,
+        motivo: linha.motivo,
+        valorPrincipal: linha.valorPrincipal,
+        valorJurosCorrecao: linha.valorJurosCorrecao ?? 0,
+        valorProvisaoProjuris: linha.valorProvisaoProjuris,
+        tipoAcao: linha.tipoAcao,
+        centroCusto: resolvido?.centroCusto,
+        contaContabil: resolvido?.contaContabil,
+        ordemInterna: resolvido?.ordemInterna,
+        semaforo: (resolvido ? 'VERDE' : 'VERMELHO') as Semaforo,
+      }
+    }),
+  )
+}
+
+function somarValorTotal(linhas: { valorPrincipal: number; valorJurosCorrecao: number }[]): number {
+  const total = linhas.reduce((acc, l) => acc + l.valorPrincipal + l.valorJurosCorrecao, 0)
+  return Number(total.toFixed(2))
+}
+
+function resolverEscritorioId(usuario: UsuarioAutenticado, escritorioIdInformado?: string): string {
+  if (usuario.perfil === 'ESCRITORIO') {
+    if (!usuario.escritorioId) throw new ErroHttp(400, { erro: 'Usuário ESCRITORIO sem escritório associado' })
+    return usuario.escritorioId
+  }
+  if (!escritorioIdInformado) throw new ErroHttp(400, { erro: 'escritorioId é obrigatório' })
+  return escritorioIdInformado
+}
+
+export async function criarSolicitacao(usuario: UsuarioAutenticado, input: CriarSolicitacaoInput) {
+  const escritorioId = resolverEscritorioId(usuario, input.escritorioId)
+  const ano = input.dataDocumento.getFullYear()
+  const linhas = await montarLinhas(input.linhas, ano)
+
+  const solicitacao = await prisma.solicitacao.create({
+    data: {
+      tipoFluxo: input.tipoFluxo,
+      escritorioId,
+      fornecedorId: input.fornecedorId,
+      criadoPorId: usuario.firebaseUid,
+      status: 'RASCUNHO',
+      formaPagamento: input.formaPagamento,
+      dataDocumento: input.dataDocumento,
+      dataPrevistaPagamento: input.dataPrevistaPagamento,
+      numeroDocumentoLbs: input.numeroDocumentoLbs,
+      observacao: input.observacao ?? '',
+      valorTotal: somarValorTotal(linhas),
+      lancamentos: { create: linhas },
+    },
+    include: { lancamentos: true },
+  })
+
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: solicitacao.id,
+    acao: 'criar',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: solicitacao.status },
+  })
+
+  return solicitacao
+}
+
+async function buscarOuFalhar(id: string) {
+  const solicitacao = await prisma.solicitacao.findUnique({
+    where: { id },
+    include: { lancamentos: true, anexos: true, alertas: true, comentarios: true },
+  })
+  if (!solicitacao) throw naoEncontrado()
+  return solicitacao
+}
+
+function garantirAcesso(usuario: UsuarioAutenticado, escritorioId: string) {
+  if (!podeAcessarEscritorio(usuario, escritorioId)) throw naoEncontrado()
+}
+
+export async function buscarSolicitacao(usuario: UsuarioAutenticado, id: string) {
+  const solicitacao = await buscarOuFalhar(id)
+  garantirAcesso(usuario, solicitacao.escritorioId)
+  return { ...solicitacao, semaforo: piorSemaforo(solicitacao.lancamentos.map((l) => l.semaforo)) }
+}
+
+export async function atualizarSolicitacao(
+  usuario: UsuarioAutenticado,
+  id: string,
+  input: Partial<CriarSolicitacaoInput>,
+) {
+  const atual = await buscarOuFalhar(id)
+  garantirAcesso(usuario, atual.escritorioId)
+  if (atual.status !== 'RASCUNHO' && atual.status !== 'DEVOLVIDO') {
+    throw transicaoInvalida(atual.status, 'edição')
+  }
+
+  const dataDocumento = input.dataDocumento ?? atual.dataDocumento
+  const ano = dataDocumento.getFullYear()
+  const linhas = input.linhas ? await montarLinhas(input.linhas, ano) : undefined
+
+  const solicitacao = await prisma.$transaction(async (tx) => {
+    if (linhas) {
+      await tx.lancamento.deleteMany({ where: { solicitacaoId: id } })
+    }
+    return tx.solicitacao.update({
+      where: { id },
+      data: {
+        tipoFluxo: input.tipoFluxo,
+        fornecedorId: input.fornecedorId,
+        formaPagamento: input.formaPagamento,
+        dataDocumento: input.dataDocumento,
+        dataPrevistaPagamento: input.dataPrevistaPagamento,
+        numeroDocumentoLbs: input.numeroDocumentoLbs,
+        observacao: input.observacao,
+        valorTotal: linhas ? somarValorTotal(linhas) : undefined,
+        lancamentos: linhas ? { create: linhas } : undefined,
+      },
+      include: { lancamentos: true },
+    })
+  })
+
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'atualizar',
+    usuarioId: usuario.firebaseUid,
+    diff: { camposAlterados: Object.keys(input) },
+  })
+
+  return solicitacao
+}
+
+export interface FiltrosListagem {
+  status?: StatusSolicitacao
+  escritorioId?: string
+  tipoFluxo?: TipoFluxo
+  pasta?: string
+  semaforo?: Semaforo
+  page?: number
+  pageSize?: number
+}
+
+export async function listarSolicitacoes(usuario: UsuarioAutenticado, filtros: FiltrosListagem) {
+  const page = Math.max(1, filtros.page ?? 1)
+  const pageSize = Math.min(100, Math.max(1, filtros.pageSize ?? 20))
+
+  const where: Prisma.SolicitacaoWhereInput = {}
+  if (usuario.perfil === 'ESCRITORIO') {
+    where.escritorioId = usuario.escritorioId ?? '__nenhum__'
+  } else if (filtros.escritorioId) {
+    where.escritorioId = filtros.escritorioId
+  }
+  if (filtros.status) where.status = filtros.status
+  if (filtros.tipoFluxo) where.tipoFluxo = filtros.tipoFluxo
+  if (filtros.pasta) where.lancamentos = { some: { pastaProjuris: { contains: filtros.pasta } } }
+
+  const todos = await prisma.solicitacao.findMany({
+    where,
+    include: { lancamentos: { select: { semaforo: true } } },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const comSemaforo = todos.map((s) => ({
+    ...s,
+    semaforo: piorSemaforo(s.lancamentos.map((l) => l.semaforo)),
+  }))
+  const filtrados = filtros.semaforo ? comSemaforo.filter((s) => s.semaforo === filtros.semaforo) : comSemaforo
+
+  const total = filtrados.length
+  const items = filtrados.slice((page - 1) * pageSize, page * pageSize)
+  return { items, total, page, pageSize }
+}
+
+export async function enviarSolicitacao(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  garantirAcesso(usuario, atual.escritorioId)
+  if (atual.status !== 'RASCUNHO' && atual.status !== 'DEVOLVIDO') {
+    throw transicaoInvalida(atual.status, 'EM_CONFERENCIA')
+  }
+
+  const solicitacao = await prisma.solicitacao.update({ where: { id }, data: { status: 'EM_CONFERENCIA' } })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'enviar',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'EM_CONFERENCIA' } },
+  })
+  return solicitacao
+}
+
+export async function aprovarSolicitacao(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  if (atual.status !== 'EM_CONFERENCIA') throw transicaoInvalida(atual.status, 'APROVADO')
+
+  const vermelhoAberto =
+    atual.alertas.some((a) => a.severidade === 'VERMELHO' && !a.resolvidoEm) ||
+    atual.lancamentos.some((l) => l.semaforo === 'VERMELHO')
+  if (vermelhoAberto) {
+    throw new ErroHttp(422, { erro: 'Existem alertas vermelhos não resolvidos nesta solicitação' })
+  }
+
+  const solicitacao = await prisma.solicitacao.update({ where: { id }, data: { status: 'APROVADO' } })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'aprovar',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'APROVADO' } },
+  })
+  return solicitacao
+}
+
+export async function devolverSolicitacao(usuario: UsuarioAutenticado, id: string, comentario: string) {
+  const atual = await buscarOuFalhar(id)
+  if (atual.status !== 'EM_CONFERENCIA') throw transicaoInvalida(atual.status, 'DEVOLVIDO')
+
+  const [solicitacao] = await prisma.$transaction([
+    prisma.solicitacao.update({ where: { id }, data: { status: 'DEVOLVIDO' } }),
+    prisma.comentario.create({ data: { solicitacaoId: id, autorId: usuario.firebaseUid, texto: comentario } }),
+  ])
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'devolver',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'DEVOLVIDO' }, comentario },
+  })
+  return solicitacao
+}
+
+export async function abrirChamado(usuario: UsuarioAutenticado, id: string, numeroChamado: string) {
+  const atual = await buscarOuFalhar(id)
+  if (atual.status !== 'APROVADO') throw transicaoInvalida(atual.status, 'CHAMADO_ABERTO')
+
+  const solicitacao = await prisma.solicitacao.update({
+    where: { id },
+    data: { status: 'CHAMADO_ABERTO', numeroChamado },
+  })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'abrir-chamado',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'CHAMADO_ABERTO' }, numeroChamado },
+  })
+  return solicitacao
+}
+
+export async function registrarPagamento(
+  usuario: UsuarioAutenticado,
+  id: string,
+  dados: { dataPagamento: Date; numeroDocumentoLbs?: string },
+) {
+  const atual = await buscarOuFalhar(id)
+  if (atual.status !== 'CHAMADO_ABERTO') throw transicaoInvalida(atual.status, 'PAGO')
+
+  const solicitacao = await prisma.solicitacao.update({
+    where: { id },
+    data: {
+      status: 'PAGO',
+      dataPagamento: dados.dataPagamento,
+      numeroDocumentoLbs: dados.numeroDocumentoLbs ?? atual.numeroDocumentoLbs,
+    },
+  })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'registrar-pagamento',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'PAGO' }, dataPagamento: dados.dataPagamento.toISOString() },
+  })
+  return solicitacao
+}
+
+export async function resolverAlerta(usuario: UsuarioAutenticado, alertaId: string, justificativa: string) {
+  const alerta = await prisma.alerta.findUnique({ where: { id: alertaId } })
+  if (!alerta) throw naoEncontrado()
+
+  const atualizado = await prisma.alerta.update({
+    where: { id: alertaId },
+    data: { resolvidoPorId: usuario.firebaseUid, resolvidoEm: new Date(), justificativa },
+  })
+
+  if (alerta.lancamentoId) {
+    const abertos = await prisma.alerta.findMany({
+      where: { lancamentoId: alerta.lancamentoId, resolvidoEm: null, id: { not: alertaId } },
+    })
+    const semaforo = piorSemaforo(abertos.map((a) => a.severidade))
+    await prisma.lancamento.update({ where: { id: alerta.lancamentoId }, data: { semaforo } })
+  }
+
+  await registrarHistorico({
+    entidade: 'Alerta',
+    entidadeId: alertaId,
+    acao: 'resolver',
+    usuarioId: usuario.firebaseUid,
+    diff: { justificativa },
+  })
+
+  return atualizado
+}
