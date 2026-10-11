@@ -55,3 +55,18 @@ instrução do briefing ("decida, registre aqui e siga").
   `FIREBASE_AUTH_EMULATOR_HOST` não está definido (dev sem emulador rodando) e correm
   de verdade no CI e em `npm run test:emulated` (script novo, só uma conveniência local
   equivalente ao que o CI já faz).
+
+## B3 — schema Prisma (2026-10-11)
+
+- **De-para fica congelado no lançamento.** `Lancamento.centroCusto/contaContabil/
+  ordemInterna` são denormalizados (calculados pelo servidor a partir de
+  `DeParaContabil` no momento do envio) em vez de sempre recalculados via join. Isso
+  preserva o valor histórico aplicado mesmo se o de-para mudar no ano seguinte.
+- **`ConfiguracaoChamado` sem versionamento por ano.** Os campos fixos do chamado
+  RBS_DD (Empresa Aprovadora, Natureza de gasto etc.) não variam por ano no contexto
+  do negócio (diferente da "zedoa" do de-para) — uma única config ativa é suficiente.
+- **IDs:** `cuid()` para a maioria das tabelas; `Usuario.firebaseUid` é a própria
+  chave primária (é o identificador natural do Firebase Auth).
+- **Migração gerada e testada localmente** com Postgres real via `docker compose`
+  (`prisma migrate dev --name init`) e também `prisma migrate deploy` contra um banco
+  limpo (`gavve_test`), replicando exatamente o que o CI faz.
