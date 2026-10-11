@@ -1,10 +1,12 @@
 import cors from 'cors'
 import express from 'express'
 import type { NextFunction, Request, Response } from 'express'
+import { MulterError } from 'multer'
 import { ZodError } from 'zod'
 import { ErroHttp } from './lib/erroHttp.js'
 import { alertasRouter } from './routes/alertas.js'
 import { chamadoRouter } from './routes/chamado.js'
+import { extracaoRouter } from './routes/extracao.js'
 import { listasRouter } from './routes/listas.js'
 import { meRouter } from './routes/me.js'
 import { solicitacoesRouter } from './routes/solicitacoes.js'
@@ -23,6 +25,7 @@ export function createApp() {
   app.use(solicitacoesRouter)
   app.use(alertasRouter)
   app.use(chamadoRouter)
+  app.use(extracaoRouter)
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ZodError) {
@@ -31,6 +34,10 @@ export function createApp() {
     }
     if (err instanceof ErroHttp) {
       res.status(err.status).json(err.corpo)
+      return
+    }
+    if (err instanceof MulterError) {
+      res.status(400).json({ erro: err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo maior que 10 MB' : err.message })
       return
     }
     console.error(err)
