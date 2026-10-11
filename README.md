@@ -53,6 +53,16 @@ provider mock determinístico.
 | `npm run db:seed` | popula o banco com dados fictícios de demonstração |
 | `npm run demo:reset` | recria a base demo do zero |
 
+## Dados de demonstração
+
+```bash
+npm run db:seed        # ~200 lançamentos fictícios, determinísticos, com 5 casos
+                        # propositais (duplicidade, de-para ausente, divergência de
+                        # valor, honorário atípico, saldo de adiantamento excedido)
+npm run demo:gerar-pdfs  # regera os PDFs fictícios em docs/demo-pdfs/ (já versionados)
+npm run demo:reset      # db:deploy + db:seed, recriando a base do zero
+```
+
 ## Login demo
 
 Com o emulador do Firebase Auth rodando (`npm run dev` já sobe ele), crie os usuários

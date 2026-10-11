@@ -151,8 +151,8 @@ model Lancamento {
   motivo              String
   valorPrincipal      Decimal     @db.Decimal(14, 2)
   valorJurosCorrecao  Decimal     @db.Decimal(14, 2) @default(0)
-  centroCusto         String
-  contaContabil       String
+  centroCusto         String?
+  contaContabil       String?
   ordemInterna        String?
   semaforo            Semaforo    @default(VERDE)
   createdAt           DateTime    @default(now())
