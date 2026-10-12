@@ -614,6 +614,23 @@ achou dois bugs reais de produto, não só de configuração — ambos corrigido
   negativo. Trocar o cenário de teste pra Adiantamento evita essa dependência
   sem enfraquecer a cobertura do roteiro (o alerta vermelho de saldo já tem
   teste de unidade dedicado em `validacoes.test.ts`).
+- **`vite dev` é lento demais pro healthcheck do Playwright no runner do CI.**
+  Passando os 3 testes localmente, o primeiro push pro PR do e2e falhou no CI
+  com um timeout seco de 30s esperando o botão de login aparecer — sem
+  nenhum erro de verdade, só silêncio. `playwright.config.ts` usava `npm run
+  dev -w @gavve/web` (servidor de dev do Vite, que compila cada módulo sob
+  demanda, sem bundling) como `webServer`; numa runner compartilhada do GitHub
+  Actions isso não dá conta de compilar o grafo inteiro da SPA (React, router,
+  zod, react-hook-form...) dentro da janela de teste, mesmo com o healthcheck
+  HTTP do Vite já respondendo (a rota raiz responde rápido, mas cada módulo
+  JS importado é uma requisição nova compilada na hora). Corrigido trocando o
+  `webServer` do front para `npm run build -w @gavve/web && npm run preview -w
+  @gavve/web -- --port 5173 --strictPort` — serve o bundle de produção já
+  pronto (instantâneo) e também é mais fiel ao ambiente real de deploy.
+  Reproduzido e confirmado localmente simulando o CI de verdade: matando os
+  processos de dev já rodando, exportando as mesmas variáveis de ambiente do
+  `ci.yml` e rodando com `CI=1` (o que faz o Playwright iniciar servidores
+  novos do zero, como no CI, em vez de reaproveitar os que já estavam de pé).
 
 ## H1 — plano B em HTML (2026-10-12)
 
