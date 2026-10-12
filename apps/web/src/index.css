@@ -1,8 +1,9 @@
 @import 'tailwindcss';
 
-/* Paleta/tipografia extraídas de docs/design/front-renault.html (F9) — mesmo
-   visual do mockup, mas como tokens CSS reusados por utilitários Tailwind
-   (`bg-[var(--accent)]` etc.), não uma cópia 1:1 do CSS bespoke do mockup. */
+/* Paleta/tipografia extraídas de docs/design/Portal Pagamentos Jurídico.html
+   (F9b — substitui o front-renault.html antigo do F9, ver FRONT_INVENTARIO.md),
+   como tokens CSS reusados por utilitários Tailwind (`bg-[var(--accent)]` etc.),
+   não uma cópia 1:1 do CSS bespoke do mockup. */
 :root {
   --bg: #ffffff;
   --surface: #f4f4f1;
@@ -14,14 +15,15 @@
   --line-2: #bbbcbc;
   --accent: #efdf00;
   --on-accent: #000000;
-  --ok: #0b7a3b;
+  --ok: #2f6a50;
   --on-ok: #ffffff;
-  --ok-soft: #e2f1e7;
-  --ok-ink: #0b6a33;
-  --bad: #c8102e;
+  --ok-soft: #e1e7e2;
+  --ok-ink: #2a5c46;
+  --bad: #a23b30;
   --on-bad: #ffffff;
-  --bad-soft: #fbe7ea;
-  --bad-ink: #a50d26;
+  --bad-soft: #eee3e0;
+  --bad-ink: #8c3228;
+  --off: #7a7d80;
   --warn: #efdf00;
   --warn-ink: #4a4600;
   --warn-soft: #fbf8d8;
