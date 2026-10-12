@@ -1,4 +1,4 @@
-import { auth } from './firebase'
+import { auth, authPronto } from './firebase'
 
 export class ApiError extends Error {
   status: number
@@ -14,6 +14,7 @@ export class ApiError extends Error {
 const BASE_URL = import.meta.env.VITE_API_URL
 
 async function autorizacao(): Promise<HeadersInit> {
+  await authPronto
   const token = await auth.currentUser?.getIdToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }

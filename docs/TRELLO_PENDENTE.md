@@ -20,3 +20,8 @@ credenciais (`TRELLO_KEY`/`TRELLO_TOKEN`) estiverem disponíveis.
 | B11 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/12 |
 | B13 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/14 |
 | F9 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/16 |
+| F9b *(novo, fora do board original — mockup novo do front)* | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/18 |
+| F12 *(novo — 3 fluxos de pagamento)* | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/19 |
+| F10 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/20 |
+| B14 | Done | https://github.com/emilybrtt/trasnformation-day-renault/pull/21 |
+| F11 | Em andamento (outra sessão/worktree) — atualizar quando mergear | — |

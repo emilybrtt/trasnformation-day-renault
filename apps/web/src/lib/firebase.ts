@@ -14,3 +14,14 @@ export const auth = getAuth(app)
 if (import.meta.env.VITE_USE_AUTH_EMULATOR !== 'false') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
 }
+
+// O Firebase restaura a sessão persistida (IndexedDB) de forma assíncrona —
+// logo após um reload/deep-link de verdade (page.goto, F5, link direto),
+// `auth.currentUser` ainda é `null` por um instante mesmo com sessão válida.
+// `authStateReady()` é a API oficial do SDK pra aguardar essa restauração
+// (diferente de só esperar o primeiro `onAuthStateChanged`, que pode disparar
+// com `null` antes da sessão ser restaurada). Sem isso, a primeira requisição
+// autenticada saía sem o header e recebia 401 (achado testando a Fase D: a
+// tela da/o Analista aberta por URL direta mostrava "não encontrada" mesmo
+// com a solicitação existindo).
+export const authPronto: Promise<void> = auth.authStateReady()
