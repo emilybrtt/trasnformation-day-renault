@@ -614,3 +614,35 @@ achou dois bugs reais de produto, não só de configuração — ambos corrigido
   negativo. Trocar o cenário de teste pra Adiantamento evita essa dependência
   sem enfraquecer a cobertura do roteiro (o alerta vermelho de saldo já tem
   teste de unidade dedicado em `validacoes.test.ts`).
+
+## H1 — plano B em HTML (2026-10-12)
+
+> Card isolado do board de `apps/`/`packages/` (ver instrução do card): escopo só em
+> `docs/design/Portal Pagamentos Jurídico.html`, `Portal Pagamentos Jurídico - v2.html`
+> (raiz), `docs/ROTEIRO_DEMO.md`, `docs/screenshots/html/` e `e2e-html/`.
+
+- **`fluxoOf(r)` (perfil Escritório/Operador) usa `tipo` + `forma de pagamento`,
+  não um campo novo escolhido em tela.** `nf` → `RC_HONORARIOS`; `prestacao` →
+  `ANEXO_V`; `pontual` → `RBS_DD` quando a forma é guia/boleto, senão `ANEXO_V` —
+  é exatamente a leitura que `docs/FRONT_INVENTARIO.md` já tinha registrado como
+  a mais provável para este mockup (ponto 1), então segui ela aqui em vez da leitura
+  alternativa usada no F12 do app real (fluxo = 1:1 com o tipo escolhido em cards).
+  As duas sessões ficaram com heurísticas diferentes para o mesmo mockup — fica
+  registrado nos dois lados (aqui e em F12, acima) para quem for unificar depois.
+- **`FLUXO_OF_TIPO` do painel do dono (dados sintéticos) é uma heurística por
+  motivo, não por registro individual** (a série sintética não tem "forma de
+  pagamento" por lançamento): honorários → `RC_HONORARIOS`; condenação/depósito
+  judicial → `RBS_DD` (normalmente pagos por guia); acordo/custas/seguro garantia
+  → `ANEXO_V`; recompra de veículo fica sem fluxo (fora do escopo do GAVVE, como já
+  registrado em `docs/REFS_RESUMO.md`).
+- **`LAST[2026]` passou de 9 para 10 meses** (painel do dono passa a mostrar até
+  outubro/2026, cobrindo o período pedido "jan/2025–out/2026") — 2024 continua
+  gerado só como base de comparação ano a ano para 2025, não é o início do período
+  de análise principal.
+- **"Exportar Excel" gera um `.xls` real** (tabela HTML com cabeçalho MIME do
+  Excel, baixado via Blob) em vez de depender de uma biblioteca externa (SheetJS
+  etc.) — mantém o arquivo 100% autocontido e offline, como pede o card.
+- **Integrações simuladas com atraso (~900ms) e número de protocolo fictício**
+  nos passos "abrir chamado/Anexo V/NF 0800" e "registrar pagamento" da tela do
+  operador — antes eram instantâneas; o atraso é só para a demo parecer uma
+  chamada de API de verdade, sem nenhum `fetch` real.
