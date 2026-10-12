@@ -68,6 +68,25 @@ function somarDias(data: Date, dias: number): Date {
 function numeroChamadoAleatorio(): string {
   return `BR-${String(randInt(100000, 999999))}`
 }
+function numeroAleatorio(prefixo: string): string {
+  return `${prefixo}${String(randInt(10000000, 99999999))}`
+}
+function protocoloAleatorio(): string {
+  return `PROT-${String(randInt(100000, 999999))}`
+}
+
+/** Campos das integrações do fluxo RC_HONORARIOS_NF (F12) — cada etapa alcançada
+ * implica as anteriores também terem acontecido. */
+function camposIntegracaoRc(status: StatusSolicitacao) {
+  const atingiuRc = (['RC_CRIADO', 'NF_LANCADA', 'PAGAMENTO_PROGRAMADO', 'PAGO'] as StatusSolicitacao[]).includes(status)
+  const atingiuNf = (['NF_LANCADA', 'PAGAMENTO_PROGRAMADO', 'PAGO'] as StatusSolicitacao[]).includes(status)
+  const atingiuPagtoProgramado = (['PAGAMENTO_PROGRAMADO', 'PAGO'] as StatusSolicitacao[]).includes(status)
+  return {
+    numeroRc: atingiuRc ? numeroAleatorio('RC') : null,
+    protocoloNf: atingiuNf ? protocoloAleatorio() : null,
+    numeroDocumentoSap: atingiuPagtoProgramado ? numeroAleatorio('DOC') : null,
+  }
+}
 
 // --- de-para contábil (seção 1 do CONTEXT.md) ---
 // Os códigos de 2025 são os reais do briefing. Os de 2026 são uma extrapolação
@@ -177,6 +196,9 @@ async function criarSolicitacao(opts: {
   dataDocumento: Date
   dataPagamento?: Date | null
   numeroChamado?: string | null
+  numeroRc?: string | null
+  protocoloNf?: string | null
+  numeroDocumentoSap?: string | null
   observacao?: string
   linhas: LinhaLancamento[]
   mapa: Map<string, DeParaResolvido>
@@ -199,6 +221,9 @@ async function criarSolicitacao(opts: {
       dataPrevistaPagamento:
         opts.status === 'RASCUNHO' ? null : somarDias(opts.dataDocumento, randInt(10, 20)),
       numeroChamado: opts.numeroChamado ?? null,
+      numeroRc: opts.numeroRc ?? null,
+      protocoloNf: opts.protocoloNf ?? null,
+      numeroDocumentoSap: opts.numeroDocumentoSap ?? null,
       observacao: opts.observacao ?? '',
       valorTotal: Number(valorTotal.toFixed(2)),
     },
@@ -284,10 +309,25 @@ async function seedSolicitacoesAleatorias(ctx: Awaited<ReturnType<typeof seedRef
   ] as const
   const fornecedoresIds = ctx.fornecedores.map((f) => f.id)
 
-  const STATUS_CICLO: readonly [StatusSolicitacao, number][] = [
+  // ANEXO_V e RBS_DD: Conferido → chamado (SSC/LBS) → Pago. RC_HONORARIOS tem 3
+  // passos de integração próprios (RC → NF 0800 → pagamento programado no SAP),
+  // por isso usa um ciclo de status diferente (F12).
+  const STATUS_CICLO_CHAMADO: readonly [StatusSolicitacao, number][] = [
     ['PAGO', 40],
     ['APROVADO', 10],
     ['CHAMADO_ABERTO', 10],
+    ['EM_CONFERENCIA', 15],
+    ['ENVIADO', 10],
+    ['RASCUNHO', 5],
+    ['DEVOLVIDO', 5],
+    ['CANCELADO', 5],
+  ]
+  const STATUS_CICLO_RC: readonly [StatusSolicitacao, number][] = [
+    ['PAGO', 35],
+    ['PAGAMENTO_PROGRAMADO', 8],
+    ['NF_LANCADA', 8],
+    ['RC_CRIADO', 8],
+    ['APROVADO', 6],
     ['EM_CONFERENCIA', 15],
     ['ENVIADO', 10],
     ['RASCUNHO', 5],
@@ -308,7 +348,7 @@ async function seedSolicitacoesAleatorias(ctx: Awaited<ReturnType<typeof seedRef
     const ano = dataDocumento.getFullYear()
     const escritorio = escolherPonderado(escritoriosCiclo.map((e) => [e, e.peso] as [typeof e, number]))
     const tipoFluxo = escolherPonderado(TIPO_FLUXO_CICLO)
-    const status = escolherPonderado(STATUS_CICLO)
+    const status = escolherPonderado(tipoFluxo === 'RC_HONORARIOS_NF' ? STATUS_CICLO_RC : STATUS_CICLO_CHAMADO)
     const { principal, juros } = gerarValorLinha(motivo)
 
     const dataPagamento =
@@ -336,7 +376,11 @@ async function seedSolicitacoesAleatorias(ctx: Awaited<ReturnType<typeof seedRef
       ]),
       dataDocumento,
       dataPagamento,
-      numeroChamado: status === 'CHAMADO_ABERTO' || status === 'PAGO' ? numeroChamadoAleatorio() : null,
+      numeroChamado:
+        tipoFluxo !== 'RC_HONORARIOS_NF' && (status === 'CHAMADO_ABERTO' || status === 'PAGO')
+          ? numeroChamadoAleatorio()
+          : null,
+      ...(tipoFluxo === 'RC_HONORARIOS_NF' ? camposIntegracaoRc(status) : {}),
       linhas: [{ pastaProjuris: pastaAleatoria(), area, motivo, valorPrincipal: principal, valorJurosCorrecao: juros }],
       mapa: ctx.mapa,
       ano,

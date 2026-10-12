@@ -445,3 +445,42 @@ instrução do briefing ("decida, registre aqui e siga").
   F12 (três fluxos) — documentadas em detalhe no inventário para não se perder.
 - **Modo escuro não implementado.** O mockup novo já define toda a paleta dark,
   mas não há toggle de tema no app ainda; fica para quando houver demanda real.
+
+## F12 — 3 fluxos de pagamento (2026-10-12)
+
+- **Família de fluxo (`familiaDoFluxo`) é derivada do `tipoFluxo` já existente,
+  não um campo novo.** `ANEXO_V_ADIANTAMENTO/BAIXA/REEMBOLSO` → família `ANEXO_V`;
+  `RC_HONORARIOS_NF` → `RC_HONORARIOS`; `RBS_DD_GUIA` → `RBS_DD`. O mockup novo do
+  front (F9b) sugeria um mapeamento mais sutil (tipo + forma de pagamento definindo
+  o fluxo real) — decidi seguir a instrução explícita do usuário no card F12
+  ("escritório escolhe o tipo em cards no início da solicitação"), que já bate com
+  o enum existente desde o B6. A divergência do mockup fica registrada em
+  `docs/FRONT_INVENTARIO.md` para o F10 decidir se quer refinar.
+- **3 novos status** (`RC_CRIADO`, `NF_LANCADA`, `PAGAMENTO_PROGRAMADO`) e **3 novos
+  campos** (`numeroRc`, `protocoloNf`, `numeroDocumentoSap`) em `Solicitacao` — só
+  usados pelo fluxo RC_HONORARIOS_NF. `CHAMADO_ABERTO` continua servindo ANEXO_V
+  (via `IntegracaoPortalSSC`, novo) e RBS_DD (via `IntegracaoLbs`, já existia no B9)
+  — mesma etiqueta de status, integrações/rotas diferentes.
+- **`exigirFamilia` bloqueia com 422** qualquer ação de um fluxo aplicada a uma
+  solicitação de outra família (ex.: criar RC numa solicitação ANEXO_V), antes
+  mesmo de checar o status atual — erro de regra de negócio, não de estado.
+- **`registrarPagamento` generalizado**: aceita `CHAMADO_ABERTO` (ANEXO_V/RBS_DD) ou
+  `PAGAMENTO_PROGRAMADO` (RC_HONORARIOS) como precursor — mesma função, mesma
+  lógica de comprovante/notificação do B13, sem duplicar código por fluxo.
+- **Três novas integrações mock**, todas no mesmo padrão do B9
+  (`lib/integracaoLbs`): `IntegracaoPortalSSC` (Anexo V), `IntegracaoSAP` (RC:
+  criar RC + programar pagamento), `IntegracaoPortal0800` (lançar NF). Delay
+  configurável por env var só para os testes não esperarem ~1s de verdade (mesmo
+  truque do `LBS_MOCK_DELAY_MS` do B9).
+- **Histórico das integrações reaproveita a tabela `Historico`** já existente
+  (B5) — não criei uma tabela nova só para isso, já que cada chamada de
+  integração já grava uma linha de histórico com o número/protocolo retornado.
+- **Seed (B4) atualizado**: RC_HONORARIOS_NF agora usa um ciclo de status próprio
+  (`STATUS_CICLO_RC`) cobrindo RC_CRIADO/NF_LANCADA/PAGAMENTO_PROGRAMADO, com os
+  3 campos preenchidos em cascata (atingir PAGAMENTO_PROGRAMADO implica RC e NF já
+  terem acontecido antes).
+- **UI da Analista (painel de ações/linha do tempo por tipo, badge/filtro por
+  tipo na fila) não foi construída neste card** — o F12 descrito pelo usuário é
+  essencialmente backend; a tela de Analista em si ainda não existe em `apps/web`
+  (só Escritório, do F9) e fica para o F10, que já foi anunciado como "integração
+  Escritório + Analista com a API, já incorporando os 3 fluxos do F12".

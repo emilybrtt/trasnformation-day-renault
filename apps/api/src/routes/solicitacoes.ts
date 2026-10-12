@@ -125,6 +125,46 @@ solicitacoesRouter.post(
   }),
 )
 
+solicitacoesRouter.post(
+  '/solicitacoes/:id/chamado-anexo-v',
+  auth,
+  exige('ANALISTA'),
+  assincrona(async (req, res) => {
+    const solicitacao = await servico.abrirChamadoAnexoV(req.usuario!, req.params.id)
+    res.json(solicitacao)
+  }),
+)
+
+solicitacoesRouter.post(
+  '/solicitacoes/:id/rc',
+  auth,
+  exige('ANALISTA'),
+  assincrona(async (req, res) => {
+    const solicitacao = await servico.criarRc(req.usuario!, req.params.id)
+    res.json(solicitacao)
+  }),
+)
+
+solicitacoesRouter.post(
+  '/solicitacoes/:id/nf-0800',
+  auth,
+  exige('ANALISTA'),
+  assincrona(async (req, res) => {
+    const solicitacao = await servico.lancarNf(req.usuario!, req.params.id)
+    res.json(solicitacao)
+  }),
+)
+
+solicitacoesRouter.post(
+  '/solicitacoes/:id/programar-pagamento',
+  auth,
+  exige('ANALISTA'),
+  assincrona(async (req, res) => {
+    const solicitacao = await servico.programarPagamento(req.usuario!, req.params.id)
+    res.json(solicitacao)
+  }),
+)
+
 solicitacoesRouter.get(
   '/solicitacoes/:id/rateio.xlsx',
   auth,

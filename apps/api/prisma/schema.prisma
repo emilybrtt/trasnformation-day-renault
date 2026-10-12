@@ -28,6 +28,9 @@ enum StatusSolicitacao {
   DEVOLVIDO
   APROVADO
   CHAMADO_ABERTO
+  RC_CRIADO
+  NF_LANCADA
+  PAGAMENTO_PROGRAMADO
   PAGO
   CANCELADO
 }
@@ -125,6 +128,9 @@ model Solicitacao {
   status                StatusSolicitacao @default(RASCUNHO)
   numeroChamado         String?
   numeroDocumentoLbs    String?
+  numeroRc              String?
+  protocoloNf           String?
+  numeroDocumentoSap    String?
   dataDocumento         DateTime
   dataPrevistaPagamento DateTime?
   dataPagamento         DateTime?
