@@ -16,7 +16,7 @@ apps/
 packages/
   shared/     # schemas zod compartilhados entre api e web
 docs/
-  design/     # referência visual (front-renault.html original)
+  design/     # referência visual (Portal Pagamentos Jurídico.html — atual; front-renault.html arquivado, ver FRONT_INVENTARIO.md)
   refs/       # documentos reais da Renault — NUNCA versionado (.gitignore)
 scripts/      # automação (Trello)
 e2e/          # testes Playwright (Fase D)

@@ -431,3 +431,17 @@ instrução do briefing ("decida, registre aqui e siga").
   navegador**, não contra o status `RASCUNHO` no servidor — evita ficar
   criando/atualizando uma `Solicitacao` real a cada 2s enquanto o usuário só
   está digitando nos passos 1-2 do wizard (antes de existir um `id`).
+
+## F9b — front atualizado (2026-10-12)
+
+- **Mockup novo (`Portal Pagamentos Jurídico.html`, do Vitor) substitui o antigo
+  como referência visual.** Comparação completa em `docs/FRONT_INVENTARIO.md`.
+  `front-renault.html` fica arquivado (não removido — documenta decisões do F9).
+- **Só paleta de cores foi sincronizada agora** (`--ok`, `--bad`, `--off` novos
+  tons, mais acinzentados). O resto das diferenças do mockup novo (3 tipos de
+  pedido com mapeamento tipo+forma de pagamento → tipoFluxo, de-para mais granular
+  com macro-área/Tributário/Societário, lista de recebedores maior, campos novos
+  de transferência bancária e estorno) são decisões de negócio que pertencem ao
+  F12 (três fluxos) — documentadas em detalhe no inventário para não se perder.
+- **Modo escuro não implementado.** O mockup novo já define toda a paleta dark,
+  mas não há toggle de tema no app ainda; fica para quando houver demanda real.
