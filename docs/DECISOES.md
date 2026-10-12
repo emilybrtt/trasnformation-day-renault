@@ -512,3 +512,36 @@ instrução do briefing ("decida, registre aqui e siga").
   F12 — corrigido criando `feat/F10-analista` e movendo as mudanças não
   commitadas pra lá antes de continuar. Nada chegou a ser commitado/empurrado na
   main.
+
+## B14 — deploy preparado (2026-10-12)
+
+- **Testei o `Dockerfile` de verdade (build local + `docker run`)**, mesmo sem
+  publicar nada na nuvem — "preparar, não executar" é sobre não criar recursos
+  do GCP/Firebase, não sobre não validar que a imagem funciona. Isso pegou 3 bugs
+  reais que só apareceriam num deploy de verdade:
+  1. **`npm ci` falhava no estágio `deps`**: o `postinstall` do
+     `packages/shared` roda `tsc -p tsconfig.json`, mas eu só tinha copiado o
+     `package.json` dele nesse estágio, sem o `tsconfig.json`/`src`. Corrigido
+     copiando o código-fonte completo antes do `npm ci` (um só estágio `build`
+     em vez de `deps` + `build` separados).
+  2. **`multer` não aparecia no runtime**: o `npm install` do workspace decidiu
+     aninhar essa dependência em `apps/api/node_modules/multer` em vez de
+     hoistear pra raiz — copiar só `/app/node_modules` deixava isso de fora.
+     Corrigido copiando a pasta `apps/api` inteira (não só `dist`/`package.json`/
+     `prisma`) no estágio final.
+  3. **Prisma não carregava o motor nativo no Alpine**: faltava o pacote
+     `openssl` na imagem — sem ele, o Prisma não detecta a versão do OpenSSL
+     (nem em build nem em runtime) e tenta carregar o arquivo de motor errado.
+     Corrigido com `apk add --no-cache openssl` no estágio base, e adicionado
+     `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` no
+     `generator client` do `schema.prisma` (documentando explicitamente o alvo
+     de produção, mesmo que `"native"` sozinho já resolvesse certo com o
+     openssl instalado).
+- **`.dockerignore` na raiz** (não só `.gitignore`) — o contexto de build do
+  Docker não respeita `.gitignore` automaticamente.
+- **Secrets do `deploy.yml` não existem neste repositório** (de propósito — ver
+  `docs/DEPLOY.md`). O workflow só roda via `workflow_dispatch`, nunca em
+  push/PR, e não toca no `ci.yml`.
+- **GitLab CI é o equivalente homologado na Renault** — documentado em
+  `docs/DEPLOY.md` como pedia o card, já que GitHub Actions é só o que o
+  Insper/GitHub oferecem de graça pra este projeto de estudante.

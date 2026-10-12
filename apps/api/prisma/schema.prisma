@@ -1,5 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" cobre dev local (glibc) e o CI (ubuntu-latest); o segundo alvo é
+  // pro runtime em produção, que usa node:20-alpine (musl + OpenSSL 3) — sem
+  // isso, o motor nativo do Prisma não carrega lá (B14, descoberto testando o
+  // Dockerfile).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
