@@ -11,7 +11,9 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL
+// Default é o mesmo valor do .env.example — mantém o app funcional mesmo sem
+// nenhum VITE_* definido (ver firebase.ts para o porquê).
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 async function autorizacao(): Promise<HeadersInit> {
   await authPronto

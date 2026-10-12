@@ -614,23 +614,30 @@ achou dois bugs reais de produto, não só de configuração — ambos corrigido
   negativo. Trocar o cenário de teste pra Adiantamento evita essa dependência
   sem enfraquecer a cobertura do roteiro (o alerta vermelho de saldo já tem
   teste de unidade dedicado em `validacoes.test.ts`).
-- **`vite dev` é lento demais pro healthcheck do Playwright no runner do CI.**
-  Passando os 3 testes localmente, o primeiro push pro PR do e2e falhou no CI
-  com um timeout seco de 30s esperando o botão de login aparecer — sem
-  nenhum erro de verdade, só silêncio. `playwright.config.ts` usava `npm run
-  dev -w @gavve/web` (servidor de dev do Vite, que compila cada módulo sob
-  demanda, sem bundling) como `webServer`; numa runner compartilhada do GitHub
-  Actions isso não dá conta de compilar o grafo inteiro da SPA (React, router,
-  zod, react-hook-form...) dentro da janela de teste, mesmo com o healthcheck
-  HTTP do Vite já respondendo (a rota raiz responde rápido, mas cada módulo
-  JS importado é uma requisição nova compilada na hora). Corrigido trocando o
-  `webServer` do front para `npm run build -w @gavve/web && npm run preview -w
-  @gavve/web -- --port 5173 --strictPort` — serve o bundle de produção já
-  pronto (instantâneo) e também é mais fiel ao ambiente real de deploy.
-  Reproduzido e confirmado localmente simulando o CI de verdade: matando os
-  processos de dev já rodando, exportando as mesmas variáveis de ambiente do
-  `ci.yml` e rodando com `CI=1` (o que faz o Playwright iniciar servidores
-  novos do zero, como no CI, em vez de reaproveitar os que já estavam de pé).
+- **CI não tem nenhum `.env` nem `VITE_*` — a tela inteira quebrava com
+  `auth/invalid-api-key` antes de renderizar.** Passando os 3 testes
+  localmente, o primeiro push pro PR do e2e falhou no CI com um timeout seco
+  de 30s esperando o botão de login aparecer, sem nenhum erro visível nos
+  logs. Primeira hipótese (errada, mas não prejudicial): achei que `vite dev`
+  fosse lento demais pra compilar o grafo inteiro da SPA sob demanda numa
+  runner compartilhada, e troquei o `webServer` do front pra build + `vite
+  preview` (mais rápido e mais fiel ao deploy real de qualquer forma, então
+  mantido). Isso não resolveu — baixei o `playwright-report` do próprio run do
+  CI e o trace mostrou a causa real: `FirebaseError: Firebase: Error
+  (auth/invalid-api-key)`, lançado de forma síncrona dentro de `getAuth(app)`
+  em `apps/web/src/lib/firebase.ts`, derrubando o React inteiro antes de
+  montar qualquer coisa (tela em branco, nenhum elemento na árvore de
+  acessibilidade). Causa raiz: o job de e2e do `ci.yml` não copia
+  `.env.example` nem define nenhuma variável `VITE_*` no workflow, então o
+  build do Vite embute `undefined` pra `VITE_FIREBASE_API_KEY` etc. Como
+  `ci.yml` é explicitamente "nunca modificado por mim" (regra do CLAUDE.md), a
+  correção ficou do lado do app: dei defaults pros valores fictícios do Auth
+  Emulator diretamente em `firebase.ts`/`api.ts` (`|| 'demo-api-key'` etc. —
+  são os mesmos valores de `.env.example`, não são segredos, só funcionam
+  contra o emulador). Reproduzido e confirmado **sem o fix** (erro reaparece)
+  e **com o fix** (3/3 passam) rodando localmente com o `.env` renomeado pra
+  fora do caminho e as mesmas variáveis de ambiente do `ci.yml` exportadas —
+  ou seja, uma reprodução fiel do ambiente do CI, não só uma suposição.
 
 ## H1 — plano B em HTML (2026-10-12)
 
