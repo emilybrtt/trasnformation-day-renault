@@ -484,3 +484,31 @@ instrução do briefing ("decida, registre aqui e siga").
   essencialmente backend; a tela de Analista em si ainda não existe em `apps/web`
   (só Escritório, do F9) e fica para o F10, que já foi anunciado como "integração
   Escritório + Analista com a API, já incorporando os 3 fluxos do F12".
+
+## F10 — integração Analista + 3 fluxos no front (2026-10-12)
+
+- **Fluxo do Escritório (F9) já estava 100% integrado à API de verdade** — revisei
+  `NovaSolicitacao.tsx`/`LinhaLancamentoCampos.tsx`/`Inicio.tsx` e não havia nenhum
+  mock ou dado estático restante (AREAS/MOTIVOS são taxonomia de negócio fixa, não
+  "mock"; de-para, extração de PDF, upload de anexo, criação/envio — tudo via API
+  real desde o F9). Nada para trocar aqui.
+- **Painel de ações por família (`PAINEL_POR_FAMILIA`)** é um `switch` por
+  `familiaDoFluxo` (F12) renderizando um componente diferente — cada um só mostra o
+  botão da etapa atual (ex.: RC_HONORARIOS mostra "Criar RC" só quando `APROVADO`,
+  "Lançar NF" só quando `RC_CRIADO` etc.), em vez de mostrar os 3 botões sempre e
+  desabilitar os errados — mais simples de ler e impossível de clicar fora de
+  ordem.
+- **Linha do tempo (`LinhaDoTempo`) é derivada só do `status` atual**, igual já
+  era no F9 (não existe endpoint de histórico público) — uma sequência de passos
+  por família, destacando os já alcançados.
+- **"Aprovar todas as verdes"** (ideia do briefing original, B7) implementada na
+  fila de conferência: aprova em sequência (não em paralelo, pra não estourar o
+  rate limit nem confundir mensagens de erro) todas as solicitações 🟢 visíveis
+  com os filtros atuais.
+- **Resolver alerta e devolver** usam um campo de texto inline em vez de modal —
+  mais simples, consistente com o resto do app (sem biblioteca de modal).
+- **Erro de processo, não de código:** percebi no meio do card que tinha ficado
+  commitando direto na branch `main` local (sem `checkout -b`) depois do merge do
+  F12 — corrigido criando `feat/F10-analista` e movendo as mudanças não
+  commitadas pra lá antes de continuar. Nada chegou a ser commitado/empurrado na
+  main.
