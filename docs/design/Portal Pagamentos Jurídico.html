@@ -302,6 +302,10 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
 #pt .ofilters .seg button{padding:9px 13px;font-size:14px}
 #pt .o-grid{grid-template-columns:118px minmax(0,1.3fr) minmax(0,1.5fr) 70px 120px 130px 150px 72px}
 #pt .emp{font:500 12px var(--f-mono);border:1.5px solid var(--ink);padding:3px 6px}
+#pt .flowtag{display:inline-flex;font:500 10px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 6px;border:1.2px solid var(--ink);white-space:nowrap}
+#pt .flowtag.flow-RBS_DD{background:var(--ink);color:var(--bg)}
+#pt .flowtag.flow-RC_HONORARIOS{background:var(--accent);color:#000;border-color:#000}
+#pt .flowtag.flow-ANEXO_V{background:var(--bg);color:var(--ink)}
 #pt .due{display:flex;flex-direction:column;gap:5px;font:400 13px var(--f-mono)}
 #pt .due .bar{height:5px;background:var(--line);width:100px;position:relative}
 #pt .due .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink)}
@@ -704,7 +708,7 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
     <div class="top">
       <span class="eyebrow" id="crumb">Dono do fluxo / Painel</span>
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        <span class="eyebrow" style="color:var(--ink)">Dados até 30.09.2026 · fictícios</span>
+        <span class="eyebrow" style="color:var(--ink)">Dados até 31.10.2026 · fictícios</span>
       </div>
     </div>
 
@@ -717,6 +721,7 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
         </div>
         <div class="actions">
           <button class="btn" id="btn-copy-base" type="button"><svg viewBox="0 0 24 24"><path d="M8 8 H20 V20 H8 Z M4 16 V4 H16"/></svg>Copiar base filtrada</button>
+          <button class="btn" id="btn-xls-base" type="button"><svg viewBox="0 0 24 24"><path d="M12 16 V4 M6.5 9.5 L12 4 L17.5 9.5 M4 20.5 H20"/></svg>Exportar Excel (base filtrada)</button>
           <button class="btn btn-primary" id="btn-go-rel" type="button">Gerar relatório →</button>
         </div>
       </div>
@@ -728,7 +733,10 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
         <div class="fg"><label for="f-year">Ano</label><select class="sel" id="f-year"><option>2026</option><option>2025</option></select></div>
         <div class="fg"><span class="lab">Empresa</span>
           <div class="seg" id="f-emp"><button type="button" data-v="todas" aria-pressed="true">Todas</button><button type="button" data-v="0483" aria-pressed="false">0483</button><button type="button" data-v="0484" aria-pressed="false">0484</button><button type="button" data-v="1303" aria-pressed="false">1303</button></div></div>
-        <div class="fg"><label for="f-tipo">Tipo de pagamento</label><select class="sel" id="f-tipo"></select></div>
+        <div class="fg"><label for="f-tipo">Motivo</label><select class="sel" id="f-tipo"></select></div>
+        <div class="fg"><span class="lab">Tipo de fluxo</span>
+          <div class="seg" id="f-fluxo"><button type="button" data-v="todos" aria-pressed="true">Todos</button><button type="button" data-v="ANEXO_V" aria-pressed="false">Anexo V</button><button type="button" data-v="RC_HONORARIOS" aria-pressed="false">RC honorários</button><button type="button" data-v="RBS_DD" aria-pressed="false">RBS_DD</button></div></div>
+        <div class="fg"><label for="f-firm">Escritório</label><select class="sel" id="f-firm"></select></div>
         <div class="fg" style="flex-basis:100%"><span class="lab">Áreas</span>
           <div class="areas" id="f-areas"></div></div>
         <button class="reset" id="f-reset" type="button">LIMPAR FILTROS</button>
@@ -777,6 +785,27 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
           <div class="sec-h"><h2 id="h-esc">escritórios</h2><span class="eyebrow">qualidade das requisições</span></div>
           <div class="tw" id="t-esc"></div>
         </section>
+
+        <section class="sec" aria-labelledby="h-fluxo">
+          <div class="sec-h"><h2 id="h-fluxo">por tipo de fluxo</h2><span class="eyebrow">Anexo V · RC honorários · RBS_DD</span></div>
+          <div class="chart" id="c-fluxo"></div>
+        </section>
+
+        <section class="sec" aria-labelledby="h-mot">
+          <div class="sec-h"><h2 id="h-mot">por motivo</h2><span class="eyebrow">real pago no período</span></div>
+          <div class="chart" id="c-mot"></div>
+        </section>
+
+        <section class="sec wide" aria-labelledby="h-zedoa">
+          <div class="sec-h"><h2 id="h-zedoa">por ordem interna (zedoa)</h2><span class="eyebrow">rateio contábil · exemplo</span></div>
+          <div class="tw" id="t-zedoa"></div>
+        </section>
+
+        <section class="sec wide" aria-labelledby="h-funil">
+          <div class="sec-h"><h2 id="h-funil">funil por status · fila viva</h2><span class="eyebrow">requisições na plataforma hoje, por semáforo</span></div>
+          <div class="chart" id="c-funil"></div>
+          <p class="note">Fila do portal do escritório/operador (não é o real pago dos gráficos acima).</p>
+        </section>
       </div>
     </section>
 
@@ -791,6 +820,7 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16p
         <div class="fg"><label for="r-month">Mês</label><select class="sel" id="r-month"></select></div>
         <div class="fg"><label for="r-year">Ano</label><select class="sel" id="r-year"><option>2026</option><option>2025</option></select></div>
         <button class="btn" id="r-copy" type="button"><svg viewBox="0 0 24 24"><path d="M8 8 H20 V20 H8 Z M4 16 V4 H16"/></svg>Copiar tabela para o Excel</button>
+        <button class="btn btn-primary" id="r-xls" type="button"><svg viewBox="0 0 24 24"><path d="M12 16 V4 M6.5 9.5 L12 4 L17.5 9.5 M4 20.5 H20"/></svg>Exportar Excel (.xls)</button>
       </div>
       <div style="margin-top:28px" id="report"></div>
       <div class="hatchnote">Na versão final este relatório sai em PDF e a base em .xlsx. Aqui o botão copia a tabela; é só colar no Excel.</div>
@@ -883,6 +913,18 @@ const TIPOS={
   prestacao:{t:'Prestação de contas',s:'baixa de adiantamento recebido',path:'Anexo V',mot:['Prestação de contas']},
   nf:{t:'Honorários com NF',s:'nota fiscal de serviço do escritório',path:'RC',mot:['Honorários fixos','Honorários variáveis']}
 };
+/* fluxo (caminho de pagamento): honorários -> RC_HONORARIOS; prestação de contas -> ANEXO_V; pontual -> RBS_DD se guia, senão ANEXO_V */
+function fluxoOf(r){if(r.tipo==='nf')return 'RC_HONORARIOS';if(r.tipo==='prestacao')return 'ANEXO_V';return r.forma==='guia'?'RBS_DD':'ANEXO_V'}
+const FLUXO_LABEL={ANEXO_V:'Anexo V',RC_HONORARIOS:'RC honorários',RBS_DD:'RBS_DD'};
+const FLUXO_PATH={ANEXO_V:'Brasil › Pagamento › Anexo V › Portal SSC',RC_HONORARIOS:'SAP › RC honorários › Portal 0800 › NF › SAP pagamento',RBS_DD:'Brasil › Pagamento › WDD › RBS_DD'};
+const flowTag=r=>'<span class="flowtag flow-'+fluxoOf(r)+'">'+FLUXO_LABEL[fluxoOf(r)]+'</span>';
+const FLUXO_STEP1={RC_HONORARIOS:['abertura da RC no SAP','A requisição de compra (RC) é aberta automaticamente no SAP a partir dos dados validados. Aqui a integração é simulada.']};
+const FLUXO_STEP2={
+ RBS_DD:{title:'abrir chamado no portal SSC',hint:'Copie cada campo para o formulário do portal e anexe o Excel de rateio e a guia.',lab:'Nº do chamado SSC',ph:'2026-000000',re:/^\d{4}-\d{5,7}$/,err:'Use o formato 2026-000000.',done:'Chamado'},
+ ANEXO_V:{title:'preencher o Anexo V no portal SSC',hint:'Copie cada campo para o Anexo V do portal SSC e anexe o Excel de rateio e os documentos.',lab:'Nº do Anexo V',ph:'AV-000000',re:/^AV-\d{4,7}$/i,err:'Use o formato AV-000000.',done:'Anexo V'},
+ RC_HONORARIOS:{title:'enviar a NF no Portal 0800',hint:'A RC já foi aberta no SAP (passo 01). Envie a nota fiscal no Portal 0800 com os dados abaixo.',lab:'Protocolo do Portal 0800',ph:'0800-000000',re:/^0800-\d{4,7}$/,err:'Use o formato 0800-000000.',done:'Protocolo 0800'}
+};
+const FLUXO_STEP3_HINT={RC_HONORARIOS:'Quando o SAP pagar a NF, informe o documento LBS e anexe o comprovante. O escritório vê o status verde na hora.'};
 const ACOES=['Trabalhista (TRAB)','Cível (CIV)','Consumidor (CDC)','Tributária (TRIB)','Societária (SOC)'];
 const RECEB=[
   {k:'trt2',n:'Tribunal Regional do Trabalho da 2ª Região',s:'TRT 2ª Região',c:'0000040755',cnpj:'03.241.738/0001-39'},
@@ -966,7 +1008,9 @@ let DATA=[
  mk({id:'RQ-2026-0158',firm:'Martins Lobo Advocacia',tipo:'pontual',motivo:'Custas processuais',macro:'Corporate',area:'Cível',ref:'546310',acao:'Cível (CIV)',receb:'tjsp',ndoc:'76550',ddoc:'2026-10-04',venc:'2026-10-27',principal:1184.30,status:'ssc',api:'ok',empresa:'0483',chamado:'2026-119002',jb:'Custas de juntada',files:{guia:'guia_76550.pdf'},hist:[H('2026-10-05T10:00','Martins Lobo Advocacia','Enviada'),H('2026-10-06T10:00','Marina Souza','Validada · área Cível','g'),H('2026-10-07T09:20','Marina Souza','Chamado SSC 2026-119002 aberto','y')]}),
  mk({id:'RQ-2026-0156',firm:'Vieira & Castro Adv.',tipo:'pontual',motivo:'Depósito judicial',macro:'Labor',area:'Trabalhista',ref:'544901',acao:'Trabalhista (TRAB)',receb:'bb',ndoc:'DJ-21877',ddoc:'2026-10-03',venc:'2026-10-30',principal:22400,status:'falha',api:'falha',empresa:'0483',jb:'Depósito recursal',files:{guia:'guia_dj_21877.pdf',dec:'despacho.pdf'},hist:[H('2026-10-04T09:00','Vieira & Castro Adv.','Enviada'),H('2026-10-09T17:10','Marina Souza','Validada · área Trabalhista','g'),H('2026-10-09T17:11','Sistema','Falha ao enviar à API: tempo esgotado (HTTP 504)','r')]}),
  mk({id:'RQ-2026-0154',firm:'Martins Lobo Advocacia',tipo:'pontual',motivo:'Condenação',macro:'Labor',area:'Trabalhista',ref:'547120',acao:'Trabalhista (TRAB)',verbas:'Diferenças salariais e reflexos.',receb:'trt2',ndoc:'2240',ddoc:'2026-10-01',venc:'2026-10-19',principal:52300,juros:8900,status:'validado',api:'ok',empresa:'0483',jb:'Condenação · guia TRT 2ª',files:{guia:'guia_2240.pdf',dec:'calculo.pdf'},hist:[H('2026-10-02T10:00','Martins Lobo Advocacia','Enviada'),H('2026-10-08T15:00','Marina Souza','Validada · área Trabalhista','g'),H('2026-10-08T15:01','Sistema','Dados enviados à API de pagamentos','g')]}),
- mk({id:'RQ-2026-0150',firm:'Teixeira Ramos Adv.',tipo:'pontual',motivo:'Acordo',macro:'Corporate',area:'Rede',ref:'539900',acao:'Cível (CIV)',receb:'tjpr',ndoc:'40210',ddoc:'2026-09-20',venc:'2026-10-02',principal:7300,status:'pago',api:'ok',chamado:'2026-118100',lbs:'4500122200',pagoEm:'2026-10-02',empresa:'0483',files:{guia:'guia_40210.pdf',dec:'termo.pdf'},hist:[H('2026-09-21T10:00','Teixeira Ramos Adv.','Enviada'),H('2026-10-02T12:00','Marina Souza','Pago · doc. LBS 4500122200','g')]})
+ mk({id:'RQ-2026-0150',firm:'Teixeira Ramos Adv.',tipo:'pontual',motivo:'Acordo',macro:'Corporate',area:'Rede',ref:'539900',acao:'Cível (CIV)',receb:'tjpr',ndoc:'40210',ddoc:'2026-09-20',venc:'2026-10-02',principal:7300,status:'pago',api:'ok',chamado:'2026-118100',lbs:'4500122200',pagoEm:'2026-10-02',empresa:'0483',files:{guia:'guia_40210.pdf',dec:'termo.pdf'},hist:[H('2026-09-21T10:00','Teixeira Ramos Adv.','Enviada'),H('2026-10-02T12:00','Marina Souza','Pago · doc. LBS 4500122200','g')]}),
+ mk({id:'RQ-2026-0166',firm:MY,tipo:'nf',motivo:'Honorários fixos',macro:'Corporate',area:'Cível',ref:'556010',acao:'Cível (CIV)',receb:'esc',forma:'transf',ndoc:'1030',ddoc:'2026-10-10',venc:'2026-10-28',principal:14200,status:'novo',jb:'Honorários fixos de outubro',jc:'Mensalidade do contrato de contencioso cível, outubro/2026.',files:{nf:'nf_1030.pdf'},banco:'341',ag:'0912',conta:'44120-3',doc:'12.345.678/0001-90',hist:[H('2026-10-10T09:30',MY,'Enviada')]}),
+ mk({id:'RQ-2026-0165',firm:MY,tipo:'pontual',motivo:'Depósito judicial',macro:'Labor',area:'Trabalhista',ref:'556200',acao:'Trabalhista (TRAB)',receb:'cef',forma:'dep',ndoc:'DJ-22140',ddoc:'2026-10-09',venc:'2026-10-27',principal:16840.30,status:'novo',jb:'Depósito recursal via Anexo V',files:{guia:'guia_dj_22140.pdf',dec:'despacho_dj_22140.pdf'},hist:[H('2026-10-09T14:20',MY,'Enviada')]})
 ];
 DATA.forEach(r=>{if(!r.empresa)r.empresa=EMPRESA_OF(r.area)});
 let seq=165;
@@ -975,7 +1019,7 @@ const byId=id=>DATA.find(r=>r.id===id);
 function dupOf(r){return DATA.find(o=>o!==r&&o.firm===r.firm&&o.ref===r.ref&&Math.abs(total(o)-total(r))<0.01&&o.status!=='cancelado'&&Math.abs(days(o.venc)-days(r.venc))<=30)}
 
 /* ---------- state ---------- */
-const S={role:null,view:'login',sel:null,ctab:'todas',cq:'',ofil:{st:'fila',emp:'Todas',area:'Todas',tipo:'Todos',firm:'Todos',q:'',late:false},F:null,dec:null,sscSel:null};
+const S={role:null,view:'login',sel:null,ctab:'todas',cq:'',ofil:{st:'fila',emp:'Todas',area:'Todas',tipo:'Todos',firm:'Todos',fluxo:'Todos',q:'',late:false},F:null,dec:null,sscSel:null};
 const app=document.getElementById('app'),layer=document.getElementById('layer');
 
 function toast(t){const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=t;layer.appendChild(d);setTimeout(()=>d.remove(),2800)}
@@ -1080,7 +1124,7 @@ function cRow(r){
   const vv=r.venc?days(r.venc):null;
   return '<div class="row c-grid'+(s==='devolvido'?' is-bad':'')+'">'+
    '<span class="id cell-id">'+r.id+'</span>'+
-   '<div><button type="button" class="lnk" style="text-decoration:none;text-transform:none;letter-spacing:0;padding:0" data-open="'+r.id+'"><span class="ti">'+esc(titleOf(r))+'</span></button><div class="su">'+esc(r.macro)+' › '+esc(r.area)+'</div></div>'+
+   '<div><button type="button" class="lnk" style="text-decoration:none;text-transform:none;letter-spacing:0;padding:0" data-open="'+r.id+'"><span class="ti">'+esc(titleOf(r))+'</span></button><div class="su">'+esc(r.macro)+' › '+esc(r.area)+' · '+flowTag(r)+'</div></div>'+
    '<span class="mono"><span class="k">Ref.</span>'+esc(r.ref)+'</span>'+
    '<span class="val num"><span class="k">Valor</span>'+money(total(r))+'</span>'+
    '<span class="mono" style="font-size:13px"><span class="k">Venc.</span>'+dd(r.venc)+(vv!==null&&vv>=0&&vv<=5&&!['pago','cancelado'].includes(s)?'<br><span class="su">em '+vv+' dias</span>':'')+'</span>'+
@@ -1286,6 +1330,7 @@ function vOFila(){
   if(O.area!=='Todas')list=list.filter(r=>r.area===O.area);
   if(O.tipo!=='Todos')list=list.filter(r=>r.tipo===O.tipo);
   if(O.firm!=='Todos')list=list.filter(r=>r.firm===O.firm);
+  if(O.fluxo!=='Todos')list=list.filter(r=>fluxoOf(r)===O.fluxo);
   if(O.late)list=list.filter(r=>days(r.venc)<=7);
   const q=O.q.trim().toLowerCase();if(q)list=list.filter(r=>(r.id+' '+r.ref+' '+r.firm+' '+total(r).toFixed(2)).toLowerCase().includes(q));
   list.sort((a,b)=>a.venc<b.venc?-1:1);
@@ -1300,7 +1345,7 @@ function vOFila(){
   '<div class="pipe" role="group" aria-label="Etapas">'+pipe.map(p=>'<button type="button" class="'+p[4]+'" data-ost="'+p[0]+'" aria-pressed="'+(O.st===p[0])+'"><span class="k">'+p[1]+'</span><span class="v num">'+String(p[0]==='pago'?DATA.filter(r=>r.status==='pago'&&r.pagoEm>='2026-10-01').length:cnt(p[2])).padStart(2,'0')+'</span><span class="s">'+p[3]+'</span>'+(p[0]==='validado'&&fail?'<span class="fail">! '+fail+' FALHA API</span>':'')+'</button>').join('')+'</div>'+
   ((soon||dups)?'<div class="alertbar"><span>'+soon+' requisição(ões) vencem em até 4 dias · '+dups+' possível duplicidade</span><button type="button" data-act="soon">Filtrar estes</button></div>':'')+
   '<div class="ofilters"><div class="f"><span class="lab">Empresa</span><div class="seg" role="group" aria-label="Empresa">'+['Todas','0483','0484','1303'].map(e=>'<button type="button" data-oemp="'+e+'" aria-pressed="'+(O.emp===e)+'">'+e+'</button>').join('')+'</div></div>'+
-   sel('of-area','area',['Todas'].concat(allAreas),'Área')+sel('of-tipo','tipo',[['Todos','Todos'],['pontual','Pagamento pontual'],['prestacao','Prestação de contas'],['nf','Honorários com NF']],'Tipo')+sel('of-firm','firm',['Todos'].concat(firms),'Escritório')+
+   sel('of-area','area',['Todas'].concat(allAreas),'Área')+sel('of-tipo','tipo',[['Todos','Todos'],['pontual','Pagamento pontual'],['prestacao','Prestação de contas'],['nf','Honorários com NF']],'Tipo')+sel('of-firm','firm',['Todos'].concat(firms),'Escritório')+sel('of-fluxo','fluxo',[['Todos','Todos']].concat(Object.keys(FLUXO_LABEL).map(k=>[k,FLUXO_LABEL[k]])),'Fluxo')+
    '<div class="f"><span class="lab">Prazo</span><button type="button" class="opt" data-act="late" aria-pressed="'+O.late+'"><span class="bx"></span>Vence em até 7 dias</button></div>'+
    '<label class="search" style="flex:1 1 220px">'+I('search')+'<input id="of-q" type="search" placeholder="Nº, referência, escritório ou valor" value="'+esc(O.q)+'" aria-label="Buscar"></label></div>'+
   '<div class="rows"><div class="row hd o-grid"><span>Nº</span><span>Escritório</span><span>Pedido · área sugerida</span><span>Empresa</span><span class="r-right">Valor</span><span>Vencimento</span><span>Status</span><span></span></div>'+
@@ -1314,7 +1359,7 @@ function oRow(r){
   return '<div class="row o-grid'+(r.status==='novo'?' is-new':'')+'">'+
    '<span class="id cell-id">'+r.id+'</span>'+
    '<span style="font-weight:500">'+esc(r.firm)+'</span>'+
-   '<div><span class="ti" style="font-size:16px">'+esc(titleOf(r))+'</span><div class="su">'+esc(r.macro)+' › '+esc(r.area)+'</div></div>'+
+   '<div><span class="ti" style="font-size:16px">'+esc(titleOf(r))+'</span><div class="su">'+esc(r.macro)+' › '+esc(r.area)+' · '+flowTag(r)+'</div></div>'+
    '<span><span class="k">Empresa</span><span class="emp">'+r.empresa+'</span></span>'+
    '<span class="val num"><span class="k">Valor</span>'+money(total(r))+'</span>'+
    '<span class="due">'+(r.status==='pago'?'<span>pago '+dm(r.pagoEm)+'</span>':'<span>'+dd(r.venc)+'</span><span class="bar"><i style="width:'+pct+'%"></i></span>'+(d<0?'<span class="tag late">vencida</span>':d<=4?'<span class="tag">em '+d+' d</span>':'<span class="su">em '+d+' d</span>'))+'</span>'+
@@ -1373,22 +1418,23 @@ function vOSSC(){
 }
 function sscDetail(r){
   const rb=RB(r.receb);const R=rule(r);
-  const apiOk=r.status!=='falha';const hasCh=!!r.chamado;
+  const fl=fluxoOf(r);const st1=FLUXO_STEP1[fl]||['envio à API de pagamentos','Os dados validados vão para o sistema de pagamentos. A integração ainda será definida; aqui o envio é simulado.'];const st2=FLUXO_STEP2[fl];const st3hint=FLUXO_STEP3_HINT[fl]||'Quando o SSC pagar, informe o documento LBS e anexe o comprovante. O escritório vê o status verde na hora.';
+  const apiOk=r.status!=='falha';const hasCh=!!r.chamado;const busy2=r._busy2,busy3=r._busy3;
   const txtCab=(ABBR[r.motivo]||'')+' '+(AABBR[r.area]||'')+' REF '+r.ref;
   const fields=[['Empresa',R.emp],['Fornecedor',rb.c],['Referência',r.ref],['Texto cab. documento',txtCab],['Valor total',num(total(r))],['Data de pagamento',dd(r.venc)],['Nº do documento',r.ndoc],['Atribuição',r.atrib||(ABBR[r.motivo]+' '+r.ref)],['Ordem interna (zedoa)',R.z]];
-  return '<div class="dhead" style="padding-top:0"><div><span class="eyebrow">'+r.id+' · '+esc(r.firm)+'</span><h2 class="h2" style="font-size:clamp(28px,3.4vw,40px);margin-top:6px">'+esc(titleOf(r).toLowerCase())+' · '+esc(r.area)+'</h2><div class="meta">'+money(total(r))+' · vence '+dd(r.venc)+'</div></div><div class="rt">'+badge(r.status,'o',true)+'</div></div>'+
-  '<section class="step '+(apiOk?'done':'')+'"><span class="n">01</span><div><h2>envio à API de pagamentos</h2><p class="hint">Os dados validados vão para o sistema de pagamentos. A integração ainda será definida; aqui o envio é simulado.</p>'+
+  return '<div class="dhead" style="padding-top:0"><div><span class="eyebrow">'+r.id+' · '+esc(r.firm)+' · '+flowTag(r)+'</span><h2 class="h2" style="font-size:clamp(28px,3.4vw,40px);margin-top:6px">'+esc(titleOf(r).toLowerCase())+' · '+esc(r.area)+'</h2><div class="meta">'+money(total(r))+' · vence '+dd(r.venc)+'</div></div><div class="rt">'+badge(r.status,'o',true)+'</div></div>'+
+  '<section class="step '+(apiOk?'done':'')+'"><span class="n">01</span><div><h2>'+st1[0]+'</h2><p class="hint">'+st1[1]+'</p>'+
    (apiOk?'<div class="apibox ok">'+I('check')+'<b>Enviado</b><span>'+esc((r.hist.find(h=>/API/.test(h.txt))||{t:'—'}).t.replace('T',' · '))+' · resposta 201</span></div>':'<div class="apibox bad">'+I('alert')+'<b>Falha no envio</b><span>'+esc((r.hist.find(h=>/Falha/.test(h.txt))||{txt:''}).txt)+'</span><button class="btn" type="button" data-act="retry" data-id="'+r.id+'">'+I('retry')+'Reenviar</button></div>')+'</div></section>'+
-  '<section class="step '+(hasCh?'done':apiOk?'':'lock')+'"><span class="n">02</span><div><h2>abrir chamado no portal SSC</h2><p class="hint">Copie cada campo para o formulário do portal e anexe o Excel de rateio e a guia.</p>'+
-   '<span class="path">Brasil › Pagamento › WDD › RBS_DD'+(r.tipo==='nf'?' · RC':'')+'</span>'+
+  '<section class="step '+(hasCh?'done':apiOk?'':'lock')+'"><span class="n">02</span><div><h2>'+st2.title+'</h2><p class="hint">'+st2.hint+'</p>'+
+   '<span class="path">'+FLUXO_PATH[fl]+'</span>'+
    '<div class="copyf">'+fields.map(f=>'<div><span style="min-width:0"><small>'+f[0]+'</small><b>'+esc(f[1])+'</b></span><button type="button" data-copy="'+esc(f[1])+'" aria-label="Copiar '+esc(f[0])+'">'+I('copy')+'</button></div>').join('')+'</div>'+
    '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 22px"><button class="btn" type="button" data-act="dl">'+I('down')+'Excel de rateio</button><button class="btn" type="button" data-act="dl">'+I('down')+esc(r.files.guia||r.files.nf||'Documento')+'</button><button class="btn" type="button" data-copyall="'+r.id+'">'+I('copy')+'Copiar todos os campos</button></div>'+
-   (hasCh?'<div class="apibox ok">'+I('check')+'<b>Chamado '+esc(r.chamado)+'</b><span>registrado na requisição</span></div>':
-   '<div class="frow" style="align-items:end"><div class="f"><label for="s-ch">Nº do chamado SSC</label><input class="in mono" id="s-ch" placeholder="2026-000000"'+(apiOk?'':' disabled')+'></div><div><button class="btn" type="button" data-act="chamado" data-id="'+r.id+'"'+(apiOk?'':' disabled')+'>'+I('send')+'Registrar chamado</button></div></div>')+
+   (hasCh?'<div class="apibox ok">'+I('check')+'<b>'+st2.done+' '+esc(r.chamado)+'</b><span>registrado na requisição</span></div>':
+   '<div class="frow" style="align-items:end"><div class="f"><label for="s-ch">'+st2.lab+'</label><input class="in mono" id="s-ch" placeholder="'+st2.ph+'"'+(apiOk&&!busy2?'':' disabled')+'></div><div><button class="btn" type="button" data-act="chamado" data-id="'+r.id+'"'+(apiOk&&!busy2?'':' disabled')+'>'+(busy2?'enviando…':I('send')+'Registrar')+'</button></div></div>')+
   '</div></section>'+
-  '<section class="step '+(hasCh?'':'lock')+'"><span class="n">03</span><div><h2>registrar o pagamento</h2><p class="hint">Quando o SSC pagar, informe o documento LBS e anexe o comprovante. O escritório vê o status verde na hora.</p>'+
-   '<div class="frow"><div class="f"><label for="s-lbs">Doc. LBS</label><input class="in mono" id="s-lbs" placeholder="4500000000"'+(hasCh?'':' disabled')+'></div><div class="f"><label for="s-dt">Data do pagamento</label><input class="in mono" id="s-dt" type="date" value="'+(r.venc<=TODAY?r.venc:TODAY)+'"'+(hasCh?'':' disabled')+'></div><div class="f"><label for="s-cp">Comprovante (PDF)</label><input class="in" id="s-cp" type="file" accept="application/pdf"'+(hasCh?'':' disabled')+' style="padding:9px"></div></div>'+
-   '<div style="margin-top:22px"><button class="btn-go" type="button" data-act="pagar" data-id="'+r.id+'"'+(hasCh?'':' disabled')+'>confirmar pagamento'+I('check')+'</button></div><p class="help" id="s-err" style="color:var(--bad-ink);font-size:13px"></p>'+
+  '<section class="step '+(hasCh?'':'lock')+'"><span class="n">03</span><div><h2>registrar o pagamento</h2><p class="hint">'+st3hint+'</p>'+
+   '<div class="frow"><div class="f"><label for="s-lbs">Doc. LBS</label><input class="in mono" id="s-lbs" placeholder="4500000000"'+(hasCh&&!busy3?'':' disabled')+'></div><div class="f"><label for="s-dt">Data do pagamento</label><input class="in mono" id="s-dt" type="date" value="'+(r.venc<=TODAY?r.venc:TODAY)+'"'+(hasCh&&!busy3?'':' disabled')+'></div><div class="f"><label for="s-cp">Comprovante (PDF)</label><input class="in" id="s-cp" type="file" accept="application/pdf"'+(hasCh&&!busy3?'':' disabled')+' style="padding:9px"></div></div>'+
+   '<div style="margin-top:22px"><button class="btn-go" type="button" data-act="pagar" data-id="'+r.id+'"'+(hasCh&&!busy3?'':' disabled')+'>'+(busy3?'enviando ao SAP/SSC…':'confirmar pagamento'+I('check'))+'</button></div><p class="help" id="s-err" style="color:var(--bad-ink);font-size:13px"></p>'+
   '</div></section>';
 }
 
@@ -1430,10 +1476,13 @@ document.addEventListener('click',e=>{
     case 'validar':{const x=byId(S.dec.id),D=S.dec;Object.assign(x,{empresa:D.emp,area:D.area,macro:D.macro,motivo:D.motivo});x.status='validado';x.api='ok';x.hist.push(H(now(),'Marina Souza','Validada · área '+D.area,'g'));x.hist.push(H(now(),'Sistema','Dados enviados à API de pagamentos','g'));S.dec=null;S.sscSel=x.id;toast(x.id+' validada e enviada à API');go('o-ssc',x.id);break}
     case 'devolver':{const D=S.dec;const txt=(document.getElementById('d-txt')||{}).value||'';D.txt=txt;if(!D.cat||!txt.trim()){toast('Escolha o motivo e escreva a mensagem para o escritório.');return}const x=byId(D.id);x.status='devolvido';x.dev={cat:D.cat,txt:txt.trim(),when:now(),who:'Marina Souza'};x.hist.push(H(x.dev.when,'Marina Souza','Devolvida: '+D.cat.toLowerCase(),'r'));S.dec=null;toast(x.id+' devolvida ao escritório');go('o-fila');break}
     case 'retry':r.status='validado';r.api='ok';r.hist.push(H(now(),'Sistema','Dados enviados à API de pagamentos (reenvio)','g'));toast('Reenviado com sucesso');render();break;
-    case 'chamado':{const v=(document.getElementById('s-ch').value||'').trim();if(!/^\d{4}-\d{5,7}$/.test(v)){toast('Use o formato 2026-000000.');document.getElementById('s-ch').focus();return}r.chamado=v;r.status='ssc';r.hist.push(H(now(),'Marina Souza','Chamado SSC '+v+' aberto','y'));toast('Chamado registrado · '+v);render();break}
+    case 'chamado':{const st2=FLUXO_STEP2[fluxoOf(r)];const v=(document.getElementById('s-ch').value||'').trim();if(!st2.re.test(v)){toast(st2.err);document.getElementById('s-ch').focus();return}
+      r._busy2=true;render();
+      setTimeout(()=>{r._busy2=false;r.chamado=v;r.status='ssc';r.hist.push(H(now(),'Marina Souza',st2.done+' '+v+' aberto','y'));toast(st2.done+' registrado · '+v);render()},900);break}
     case 'pagar':{const l=(document.getElementById('s-lbs').value||'').trim(),dt=document.getElementById('s-dt').value,f=document.getElementById('s-cp').files[0];const er=document.getElementById('s-err');
       if(!/^\d{10}$/.test(l)){er.textContent='O doc. LBS tem 10 dígitos.';return}if(!dt){er.textContent='Informe a data do pagamento.';return}if(!f){er.textContent='Anexe o comprovante em PDF.';return}
-      r.lbs=l;r.pagoEm=dt;r.status='pago';r.files.comprovante=f.name;r.hist.push(H(dt+'T'+now().slice(11),'Marina Souza','Pago · doc. LBS '+l,'g'));toast(r.id+' marcada como paga');S.sscSel=null;render();break}
+      r._busy3=true;render();
+      setTimeout(()=>{r._busy3=false;r.lbs=l;r.pagoEm=dt;r.status='pago';r.files.comprovante=f.name;r.hist.push(H(dt+'T'+now().slice(11),'Marina Souza','Pago · doc. LBS '+l,'g'));toast(r.id+' marcada como paga');S.sscSel=null;render()},900);break}
   }
 });
 document.addEventListener('input',e=>{
@@ -1491,6 +1540,10 @@ const AREAS=[
  {id:'pif',nome:'PIF/PDV',macro:'PIF/PDV',code:'PIF'}];
 const AN=Object.fromEntries(AREAS.map(a=>[a.id,a]));
 const TIPOS={hon_fixo:'Honorário fixo',hon_var:'Honorário variável',condenacao:'Condenação',acordo:'Acordo',custas:'Custas processuais',deposito:'Depósito judicial',seguro:'Seguro garantia',recompra:'Recompra de veículo'};
+/* tipoFluxo: honorários -> RC_HONORARIOS; condenação/depósito pagos por guia -> RBS_DD; demais -> Anexo V; recompra não entra (fora do escopo GAVVE) */
+const FLUXO_OF_TIPO={hon_fixo:'RC_HONORARIOS',hon_var:'RC_HONORARIOS',condenacao:'RBS_DD',deposito:'RBS_DD',acordo:'ANEXO_V',custas:'ANEXO_V',seguro:'ANEXO_V'};
+const FLUXOS=['ANEXO_V','RC_HONORARIOS','RBS_DD'];
+const FLUXO_LABEL={ANEXO_V:'Anexo V',RC_HONORARIOS:'RC honorários',RBS_DD:'RBS_DD'};
 const ESC=[['Almeida Prado Adv.',.04],['Martins Lobo Advocacia',.06],['Vieira & Castro Adv.',.08],['Teixeira Ramos Adv.',.19],['Duarte Fontes Adv.',.03]];
 const SPEC={
  consumidor:{hon_fixo:[1,150e3],hon_var:[.4,40e3],condenacao:[6,16e3],acordo:[2.2,22e3],custas:[1.5,1.8e3],recompra:[.45,160e3]},
@@ -1501,7 +1554,7 @@ const SPEC={
  trabalhista:{hon_fixo:[1,310e3],hon_var:[.3,28e3],condenacao:[5,82e3],acordo:[1.2,55e3],custas:[2,1.6e3],deposito:[1.8,95e3],seguro:[1,32e3]},
  pif:{hon_fixo:[1,18e3],condenacao:[.9,330e3],acordo:[.2,120e3],custas:[.3,2e3]}};
 const GROW={2024:.9,2025:1,2026:1.05};
-const LAST={2024:12,2025:12,2026:9};
+const LAST={2024:12,2025:12,2026:10};
 const REC=[];
 for(const y of [2024,2025,2026]){for(let m=1;m<=LAST[y];m++){for(const a of AREAS){for(const [t,[lam,mean]] of Object.entries(SPEC[a.id])){
   const n=pois(lam);for(let i=0;i<n;i++){
@@ -1509,7 +1562,7 @@ for(const y of [2024,2025,2026]){for(let m=1;m<=LAST[y];m++){for(const a of AREA
     const v=Math.round(mean*g*(t==='hon_fixo'?1:(.45+R()*1.1))*100)/100;
     const e=ESC[Math.floor(R()*ESC.length)];
     const dev=R()<e[1]; const ciclo=Math.round((5+R()*12+(dev?7:0))*10)/10;
-    REC.push({y,m,area:a.id,tipo:t,valor:v,emp:R()<.72?'0483':(R()<.76?'0484':'1303'),esc:e[0],dev,ciclo,prazo:R()<(dev?.68:.94)});
+    REC.push({y,m,area:a.id,tipo:t,fluxo:FLUXO_OF_TIPO[t]||null,valor:v,emp:R()<.72?'0483':(R()<.76?'0484':'1303'),esc:e[0],dev,ciclo,prazo:R()<(dev?.68:.94)});
   }}}}}
 // budget = expected annual * factor
 const BUDGET={};
@@ -1519,7 +1572,7 @@ const MOT=[['condenacao','Condenação','681580','ZDOACON'],['acordo','Acordo','
 const RULES=[];AREAS.forEach((a,ai)=>MOT.forEach(([mid,mn,conta,z],mi)=>{if(!SPEC[a.id][mid])return;RULES.push({area:a.id,mot:mn,emp:'0483',cc:'GI85'+String(30+ai*3+(mi%3)).padStart(3,'0'),conta,zedoa:z+a.code+'26'});}));
 
 /* ---------- state ---------- */
-const S={mode:'ano',year:2026,month:9,emp:'todas',tipo:'todos',areas:new Set(AREAS.map(a=>a.id)),rtype:'mes',ryear:2026,rmonth:9,tv:{}};
+const S={mode:'ano',year:2026,month:10,emp:'todas',tipo:'todos',fluxo:'todos',firm:'todos',areas:new Set(AREAS.map(a=>a.id)),rtype:'mes',ryear:2026,rmonth:10,tv:{}};
 try{const sv=JSON.parse(localStorage.getItem('painel-fluxo')||'null');if(sv){Object.assign(S,{mode:sv.mode||S.mode});}}catch(e){}
 const save=()=>{try{localStorage.setItem('painel-fluxo',JSON.stringify({mode:S.mode}))}catch(e){}};
 
@@ -1536,9 +1589,9 @@ const el=(tag,attrs={},kids=[])=>{const e=document.createElement(tag);for(const[
 const NS='http://www.w3.org/2000/svg';
 const sv=(tag,attrs={},txt)=>{const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);if(txt!=null)e.textContent=txt;return e;};
 function months(mode,year,month){if(mode==='mes')return [month];const last=Math.min(month,LAST[year]);return Array.from({length:last},(_,i)=>i+1);}
-function filt({year,ms,areas=S.areas,emp=S.emp,tipo=S.tipo}){return REC.filter(r=>r.y===year&&ms.includes(r.m)&&areas.has(r.area)&&(emp==='todas'||r.emp===emp)&&(tipo==='todos'||r.tipo===tipo));}
+function filt({year,ms,areas=S.areas,emp=S.emp,tipo=S.tipo,fluxo=S.fluxo,firm=S.firm}){return REC.filter(r=>r.y===year&&ms.includes(r.m)&&areas.has(r.area)&&(emp==='todas'||r.emp===emp)&&(tipo==='todos'||r.tipo===tipo)&&(fluxo==='todos'||r.fluxo===fluxo)&&(firm==='todos'||r.esc===firm));}
 function budgetFor(year,ms,areaIds){return [...areaIds].reduce((s,a)=>s+BUDGET[year][a]/12*ms.length,0);}
-const tipoBudgetable=()=>S.tipo==='todos';
+const tipoBudgetable=()=>S.tipo==='todos'&&S.fluxo==='todos';
 function niceMax(v){if(v<=0)return 4;const st=v/4;const p=Math.pow(10,Math.floor(Math.log10(st)));const n=st/p;const s=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10;return s*p*4;}
 function periodLabel(mode,year,month){return mode==='mes'?`${MESL[month-1]} de ${year}`:`jan–${MES[Math.min(month,LAST[year])-1]} de ${year}`;}
 
@@ -1551,18 +1604,20 @@ function bindTip(node,fn){node.addEventListener('pointermove',e=>{const[t,r]=fn(
 const css=v=>getComputedStyle(document.getElementById('dono')||document.documentElement).getPropertyValue(v).trim();
 
 /* ---------- filters UI ---------- */
-const fMonth=document.getElementById('f-month'),fYear=document.getElementById('f-year'),fTipo=document.getElementById('f-tipo');
+const fMonth=document.getElementById('f-month'),fYear=document.getElementById('f-year'),fTipo=document.getElementById('f-tipo'),fFirm=document.getElementById('f-firm');
 function fillMonths(sel,year,cur){sel.replaceChildren(...MESL.map((m,i)=>{const o=el('option',{value:String(i+1),text:m[0].toUpperCase()+m.slice(1)});if(i+1>LAST[year])o.disabled=true;if(i+1===cur)o.selected=true;return o;}));}
 fTipo.append(el('option',{value:'todos',text:'Todos'}),...Object.entries(TIPOS).map(([k,v])=>el('option',{value:k,text:v})));
+fFirm.append(el('option',{value:'todos',text:'Todos'}),...ESC.map(([nome])=>el('option',{value:nome,text:nome})));
 function segBind(id,key,cb){const g=document.getElementById(id);g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));S[key]=b.dataset.v;cb&&cb();});}
 function segSync(id,val){document.getElementById(id).querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===val)));}
-segBind('f-mode','mode',()=>{save();render();});segBind('f-emp','emp',render);
+segBind('f-mode','mode',()=>{save();render();});segBind('f-emp','emp',render);segBind('f-fluxo','fluxo',render);
 fMonth.addEventListener('change',()=>{S.month=+fMonth.value;render();});
 fYear.addEventListener('change',()=>{S.year=+fYear.value;S.month=Math.min(S.month,LAST[S.year]);fillMonths(fMonth,S.year,S.month);render();});
 fTipo.addEventListener('change',()=>{S.tipo=fTipo.value;render();});
+fFirm.addEventListener('change',()=>{S.firm=fFirm.value;render();});
 const fAreas=document.getElementById('f-areas');
 function buildAreas(){fAreas.replaceChildren();let lastMacro='';AREAS.forEach(a=>{if(a.macro!==lastMacro){fAreas.append(el('span',{class:'macro',text:a.macro.toUpperCase()}));lastMacro=a.macro;}const b=el('button',{type:'button','aria-pressed':String(S.areas.has(a.id))},[el('span',{class:'box'}),document.createTextNode(a.nome)]);b.addEventListener('click',()=>{if(S.areas.has(a.id)){if(S.areas.size>1)S.areas.delete(a.id);}else S.areas.add(a.id);b.setAttribute('aria-pressed',String(S.areas.has(a.id)));render();});fAreas.append(b);});}
-document.getElementById('f-reset').addEventListener('click',()=>{S.mode='ano';S.year=2026;S.month=9;S.emp='todas';S.tipo='todos';S.areas=new Set(AREAS.map(a=>a.id));segSync('f-mode','ano');segSync('f-emp','todas');fYear.value='2026';fillMonths(fMonth,2026,9);fTipo.value='todos';buildAreas();render();});
+document.getElementById('f-reset').addEventListener('click',()=>{S.mode='ano';S.year=2026;S.month=10;S.emp='todas';S.tipo='todos';S.fluxo='todos';S.firm='todos';S.areas=new Set(AREAS.map(a=>a.id));segSync('f-mode','ano');segSync('f-emp','todas');segSync('f-fluxo','todos');fYear.value='2026';fillMonths(fMonth,2026,10);fTipo.value='todos';fFirm.value='todos';buildAreas();render();});
 
 /* ---------- summary ---------- */
 function renderSummary(){
@@ -1587,7 +1642,7 @@ function renderSummary(){
   tile('Acordos',short(sum(aco)),p=>p.append(el('b',{text:aco.length+' pagamentos'}),document.createTextNode(` · ${cond.length+aco.length?nf0.format(aco.length/(cond.length+aco.length)*100):0}% dos casos`)));
   tile('Honorários variáveis',short(sum(hv)),p=>p.append(el('b',{text:hv.length+' pagamentos'}),document.createTextNode(' · média '+short(hv.length?sum(hv)/hv.length:0))));
   tile('Ciclo médio',nf1.format(ciclo)+' dias',p=>p.append(document.createTextNode('da abertura ao pagamento · '),el('b',{text:nf0.format(prazo*100)+'% no prazo'})));
-  tile('Devolvidas ao escritório',nf0.format(dev*100)+'%',p=>{if(worst&&worst[1]>.15){p.append(el('span',{class:'flag',text:'ATENÇÃO'}),document.createTextNode(worst[0]+' '+nf0.format(worst[1]*100)+'%'));}else p.append(document.createTextNode('nenhum escritório acima de 15%'));});
+  tile('Sem devolução',nf0.format((1-dev)*100)+'%',p=>{if(worst&&worst[1]>.15){p.append(el('span',{class:'flag',text:'ATENÇÃO'}),document.createTextNode(worst[0]+' devolveu '+nf0.format(worst[1]*100)+'%'));}else p.append(document.createTextNode(nf0.format(dev*100)+'% devolvidas ao escritório'));});
   tile('Requisições pagas',nf0.format(cur.length),p=>p.append(document.createTextNode('ticket médio '),el('b',{text:short(cur.length?real/cur.length:0)})));
   document.getElementById('period-sub').textContent=`${periodLabel(S.mode,S.year,S.month)[0].toUpperCase()+periodLabel(S.mode,S.year,S.month).slice(1)}, comparado com o mesmo período de ${S.year-1}. ${S.areas.size===AREAS.length?'Todas as áreas':S.areas.size+' áreas'} · ${S.emp==='todas'?'todas as empresas':'empresa '+S.emp}${S.tipo==='todos'?'':' · '+TIPOS[S.tipo]}.`;
 }
@@ -1675,7 +1730,7 @@ function chartDep(){
   const box=document.getElementById('c-dep');box.replaceChildren();
   const ys=[2024,2025,2026];
   const data=ys.map(y=>{const ms=months('ano',y,y===S.year?S.month:12);const rs=filt({year:y,ms,tipo:'todos'});return {y,dep:sum(rs.filter(r=>r.tipo==='deposito')),seg:sum(rs.filter(r=>r.tipo==='seguro')),ms:ms.length};});
-  document.getElementById('n-dep').textContent=`${S.year} até ${MES[Math.min(S.month,LAST[S.year])-1]}; anos anteriores completos${S.year===2025?' (2026 até set)':''}. Seguro garantia entra como G&A.`;
+  document.getElementById('n-dep').textContent=`${S.year} até ${MES[Math.min(S.month,LAST[S.year])-1]}; anos anteriores completos${S.year===2025?' (2026 até out)':''}. Seguro garantia entra como G&A.`;
   const W=Math.max(300,box.clientWidth),H=240,L=50,T=22,B=28;
   const svg=sv('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Depósito judicial e seguro garantia por ano'});
   const max=niceMax(Math.max(...data.map(d=>Math.max(d.dep,d.seg)),1));const y=v=>T+(H-T-B)*(1-v/max);
@@ -1728,11 +1783,79 @@ function tableEsc(){
   t.append(tb);box.append(t);box.append(el('p',{class:'note',text:'Hachurado: mais de 15% das requisições devolvidas no período. Escala da barra até 30%.'}));
 }
 
+/* ---------- chart: por tipo de fluxo ---------- */
+function chartFluxo(){
+  const box=document.getElementById('c-fluxo');box.replaceChildren();
+  const ms=months(S.mode,S.year,S.month);const rs=filt({year:S.year,ms,fluxo:'todos'}).filter(r=>r.fluxo);
+  const data=FLUXOS.map(f=>{const v=rs.filter(r=>r.fluxo===f);return {f,v:sum(v),n:v.length}}).filter(d=>d.v>0).sort((a,b)=>b.v-a.v);
+  if(!data.length){box.append(el('p',{class:'note',text:'Nenhum pagamento com fluxo mapeado no período.'}));return}
+  const W=Math.max(280,box.clientWidth),lw=104,rw=108,rowH=44,H=data.length*rowH+20;
+  const svg=sv('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Real pago por tipo de fluxo'});
+  const max=niceMax(Math.max(...data.map(d=>d.v)));const x=v=>(W-lw-rw)*v/max;
+  data.forEach((d,i)=>{const y=i*rowH+6;svg.append(sv('text',{x:0,y:y+15,class:'lbl'},FLUXO_LABEL[d.f]));
+    const g=sv('g',{class:'bar'});g.append(sv('rect',{x:lw,y:y-4,width:W-lw-rw,height:26,fill:'transparent'}));
+    g.append(sv('rect',{x:lw,y:y+2,width:Math.max(1,x(d.v)),height:16,fill:d.f==='RBS_DD'?css('--ink'):d.f==='RC_HONORARIOS'?css('--accent'):css('--series-2')}));svg.append(g);
+    const t=sv('text',{x:W,y:y+15,'text-anchor':'end'});t.append(sv('tspan',{class:'val'},short(d.v)));t.append(sv('tspan',{dx:6},'· '+d.n));svg.append(t);
+    bindTip(g,()=>[FLUXO_LABEL[d.f],[['Real pago',brl(d.v)],['Pagamentos',String(d.n)]]]);});
+  box.append(svg);
+}
+
+/* ---------- chart: por motivo ---------- */
+function chartMotivo(){
+  const box=document.getElementById('c-mot');box.replaceChildren();
+  const ms=months(S.mode,S.year,S.month);const rs=filt({year:S.year,ms});
+  const data=Object.entries(TIPOS).map(([k,nome])=>({k,nome,v:sum(rs.filter(r=>r.tipo===k)),n:rs.filter(r=>r.tipo===k).length})).filter(d=>d.v>0).sort((a,b)=>b.v-a.v);
+  if(!data.length){box.append(el('p',{class:'note',text:'Nenhum pagamento no período e nas áreas escolhidas.'}));return}
+  const W=Math.max(280,box.clientWidth),lw=132,rw=100,rowH=34,H=data.length*rowH+18;
+  const svg=sv('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Real pago por motivo'});
+  const max=niceMax(Math.max(...data.map(d=>d.v)));const x=v=>(W-lw-rw)*v/max;
+  data.forEach((d,i)=>{const y=i*rowH+4;svg.append(sv('text',{x:0,y:y+14,class:'lbl'},d.nome));
+    const g=sv('g',{class:'bar'});g.append(sv('rect',{x:lw,y:y-3,width:W-lw-rw,height:20,fill:'transparent'}));
+    g.append(sv('rect',{x:lw,y:y+1,width:Math.max(1,x(d.v)),height:12,fill:css('--ink')}));svg.append(g);
+    svg.append(sv('text',{x:W,y:y+11,'text-anchor':'end',class:'val'},short(d.v)));
+    bindTip(g,()=>[d.nome,[['Real pago',brl(d.v)],['Pagamentos',String(d.n)]]]);});
+  box.append(svg);
+}
+
+/* ---------- table: por ordem interna (zedoa) ---------- */
+function tableZedoa(){
+  const box=document.getElementById('t-zedoa');box.replaceChildren();
+  const ms=months(S.mode,S.year,S.month);const rs=filt({year:S.year,ms});
+  const zedoaOf=r=>{const nome=TIPOS[r.tipo];const rule=RULES.find(x=>x.area===r.area&&x.mot===nome);return rule?rule.zedoa:'—'};
+  const by={};rs.forEach(r=>{const z=zedoaOf(r);(by[z]??=[]).push(r)});
+  const rows=Object.entries(by).map(([z,v])=>({z,area:AN[v[0].area].nome,v:sum(v),n:v.length})).sort((a,b)=>b.v-a.v);
+  box.append(tableOf(['Ordem interna','Área (exemplo)','Valor','Lançamentos'],rows.map(r=>[r.z,r.area,brl(r.v),String(r.n)]),[2,3]));
+  box.append(el('p',{class:'note',text:'Zedoa de exemplo (RULES) por área + motivo; "—" quando o motivo não tem regra cadastrada (ex.: seguro garantia, recompra).'}));
+}
+
+/* ---------- chart: funil por status (fila viva do portal) ---------- */
+function chartFunil(){
+  const box=document.getElementById('c-funil');box.replaceChildren();
+  const rs=window.__portalData?window.__portalData():[];
+  const order=['Novo','Em análise','Devolvido','Validado','Falha na API','No SSC','Pago','Cancelado'];
+  const color=s=>s==='Pago'?css('--ok'):(s==='Devolvido'||s==='Falha na API')?css('--bad'):s==='Cancelado'?css('--line-2'):css('--accent');
+  const data=order.map(s=>({s,n:rs.filter(r=>r.status===s).length})).filter(d=>d.n>0);
+  const verde=rs.filter(r=>r.status==='Pago').length,vermelho=rs.filter(r=>['Devolvido','Falha na API'].includes(r.status)).length,amarelo=rs.length-verde-vermelho-rs.filter(r=>r.status==='Cancelado').length;
+  const kv=el('div',{class:'kv',style:'margin-bottom:18px'});
+  [['No prazo · verde',verde],['Em andamento · amarelo',amarelo],['Atenção · vermelho',vermelho]].forEach(([k,v])=>kv.append(el('div',{},[el('span',{class:'eyebrow',text:k}),el('b',{class:'num',text:nf0.format(v)})])));
+  box.append(kv);
+  if(!data.length){box.append(el('p',{class:'note',text:'Nenhuma requisição na fila do portal.'}));return}
+  const W=Math.max(280,box.clientWidth),lw=112,rw=70,rowH=34,H=data.length*rowH+18;
+  const svg=sv('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Funil por status da fila do portal'});
+  const max=niceMax(Math.max(...data.map(d=>d.n)));const x=v=>(W-lw-rw)*v/max;
+  data.forEach((d,i)=>{const y=i*rowH+4;svg.append(sv('text',{x:0,y:y+14,class:'lbl'},d.s));
+    const g=sv('g',{class:'bar'});g.append(sv('rect',{x:lw,y:y-3,width:W-lw-rw,height:20,fill:'transparent'}));
+    g.append(sv('rect',{x:lw,y:y+1,width:Math.max(1,x(d.n)),height:12,fill:color(d.s)}));svg.append(g);
+    svg.append(sv('text',{x:W,y:y+11,'text-anchor':'end',class:'val'},String(d.n)));
+    bindTip(g,()=>[d.s,[['Requisições',String(d.n)]]]);});
+  box.append(svg);
+}
+
 /* ---------- relatórios ---------- */
 const rMonth=document.getElementById('r-month'),rYear=document.getElementById('r-year');
 segBind('r-type','rtype',renderReport);rMonth.addEventListener('change',()=>{S.rmonth=+rMonth.value;renderReport();});
 rYear.addEventListener('change',()=>{S.ryear=+rYear.value;S.rmonth=Math.min(S.rmonth,LAST[S.ryear]);fillMonths(rMonth,S.ryear,S.rmonth);renderReport();});
-let reportTSV='';
+let reportTSV='';let reportXLS=null;
 function renderReport(){
   rMonth.disabled=S.rtype==='ano';
   const y=S.ryear,ms=S.rtype==='mes'?[S.rmonth]:months('ano',y,12),cur=filt({year:y,ms}),prev=filt({year:y-1,ms});
@@ -1757,25 +1880,38 @@ function renderReport(){
   rb.append(el('section',{},[el('span',{class:'eyebrow',text:'Por tipo de pagamento'}),el('div',{style:'height:10px'}),tableOf(['Tipo','Valor','Participação'],tipos,[1,2])]));
   rep.append(rb);box.append(rep);
   reportTSV=[title,'',head.join('\t'),...body.map(r=>r.join('\t'))].join('\n');
+  reportXLS={title,head,body};
 }
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200);}
 async function copyText(txt,ok){try{await navigator.clipboard.writeText(txt);toast(ok);}catch(e){const ta=el('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.append(ta);ta.select();try{document.execCommand('copy');toast(ok);}catch(_){toast('Não foi possível copiar aqui');}ta.remove();}}
+/* Exporta .xls real (tabela HTML lida pelo Excel) sem depender de biblioteca externa. */
+function exportXLS(filename,title,head,rows){
+  const e2=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>'+e2(title)+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1"><caption>'+e2(title)+'</caption><thead><tr>'+head.map(h=>'<th>'+e2(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+e2(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></body></html>';
+  const blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel'});
+  const a=el('a',{href:URL.createObjectURL(blob),download:filename});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+}
 document.getElementById('r-copy').addEventListener('click',()=>copyText(reportTSV,'Tabela copiada. Cole no Excel.'));
+document.getElementById('r-xls').addEventListener('click',()=>{if(!reportXLS)return;exportXLS('relatorio-pagamentos-juridico.xls',reportXLS.title,reportXLS.head,reportXLS.body);toast('Arquivo .xls gerado.')});
 document.getElementById('btn-copy-base').addEventListener('click',()=>{const ms=months(S.mode,S.year,S.month);const rs=filt({year:S.year,ms});const txt=['Ano\tMês\tÁrea\tMacro\tTipo\tEmpresa\tEscritório\tValor\tCiclo (dias)\tDevolvida',...rs.map(r=>[r.y,MES[r.m-1],AN[r.area].nome,AN[r.area].macro,TIPOS[r.tipo],r.emp,r.esc,nf2.format(r.valor),nf1.format(r.ciclo),r.dev?'sim':'não'].join('\t'))].join('\n');copyText(txt,`${rs.length} linhas copiadas. Cole no Excel.`);});
+document.getElementById('btn-xls-base').addEventListener('click',()=>{const ms=months(S.mode,S.year,S.month);const rs=filt({year:S.year,ms});
+  const head=['Ano','Mês','Área','Macro','Fluxo','Motivo','Empresa','Escritório','Valor','Ciclo (dias)','Devolvida'];
+  const rows=rs.map(r=>[r.y,MES[r.m-1],AN[r.area].nome,AN[r.area].macro,r.fluxo?FLUXO_LABEL[r.fluxo]:'—',TIPOS[r.tipo],r.emp,r.esc,nf2.format(r.valor),nf1.format(r.ciclo),r.dev?'sim':'não']);
+  exportXLS('base-pagamentos-juridico.xls','Base filtrada · '+periodLabel(S.mode,S.year,S.month),head,rows);toast(`Excel com ${rs.length} linha(s) gerado.`);});
 document.getElementById('btn-go-rel').addEventListener('click',()=>{S.rtype=S.mode;S.ryear=S.year;S.rmonth=S.month;segSync('r-type',S.rtype);rYear.value=String(S.ryear);fillMonths(rMonth,S.ryear,S.rmonth);go('relatorios');});
 
 /* ---------- budget & regras ---------- */
 function renderBudget(){
   const box=document.getElementById('t-budget');box.replaceChildren();
-  const t=el('table');t.append(el('thead',{},el('tr',{},['Área','Macro','2024','2025','2026','Real 2026 (até set)','Consumo'].map((h,i)=>el('th',{class:i>=2?'r':'',text:h})))));
+  const t=el('table');t.append(el('thead',{},el('tr',{},['Área','Macro','2024','2025','2026','Real 2026 (até out)','Consumo'].map((h,i)=>el('th',{class:i>=2?'r':'',text:h})))));
   const tb=el('tbody');
   AREAS.forEach(a=>{const tr=el('tr');tr.append(el('td',{text:a.nome}),el('td',{class:'m',text:a.macro}));
     [2024,2025,2026].forEach(y=>{const inp=el('input',{class:'num-in',id:`bud-${a.id}-${y}`,'aria-label':`Budget ${a.nome} ${y}`,inputmode:'numeric',value:nf0.format(BUDGET[y][a.id])});inp.addEventListener('change',()=>{const v=Number(inp.value.replace(/\./g,'').replace(',','.'));if(!isNaN(v)&&v>=0){BUDGET[y][a.id]=v;inp.value=nf0.format(v);render();renderBudget();toast('Budget atualizado');}else inp.value=nf0.format(BUDGET[y][a.id]);});tr.append(el('td',{class:'r'},inp));});
-    const real=sum(REC.filter(r=>r.y===2026&&r.area===a.id));const u=real/(BUDGET[2026][a.id]*9/12);
+    const real=sum(REC.filter(r=>r.y===2026&&r.area===a.id));const u=real/(BUDGET[2026][a.id]*10/12);
     tr.append(el('td',{class:'r m num',text:short(real)}),el('td',{class:'r m num'},[u>1?el('span',{class:'flag',text:'ACIMA'}):null,document.createTextNode(nf0.format(u*100)+'%')]));tb.append(tr);});
   const tot=y=>AREAS.reduce((s,a)=>s+BUDGET[y][a.id],0);
   tb.append(el('tr',{},[el('td',{text:'Total'}),el('td'),...[2024,2025,2026].map(y=>el('td',{class:'r m num',style:'font-weight:500',text:short(tot(y))})),el('td',{class:'r m num',text:short(sum(REC.filter(r=>r.y===2026)))}),el('td')]));
-  t.append(tb);box.append(t);box.append(el('p',{class:'note',text:'Consumo = real até setembro ÷ (budget anual × 9/12). Edite um valor e tecle Enter.'}));
+  t.append(tb);box.append(t);box.append(el('p',{class:'note',text:'Consumo = real até outubro ÷ (budget anual × 10/12). Edite um valor e tecle Enter.'}));
 }
 function renderRegras(){
   const box=document.getElementById('t-regras');box.replaceChildren();
@@ -1791,9 +1927,9 @@ function go(v){document.querySelectorAll('[data-v]').forEach(s=>{if(s.tagName===
   if(v==='relatorios')renderReport();if(v==='budget')renderBudget();if(v==='regras')renderRegras();if(v==='painel')render();scrollTo({top:0});}
 document.querySelectorAll('#dono .rail nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
 
-function render(){renderSummary();chartBud();chartMes();chartAc();chartDep();tableHon();chartRec();tableEsc();}
-segSync('f-mode',S.mode);fillMonths(fMonth,2026,9);fillMonths(rMonth,2026,9);buildAreas();render();
-let rt;new ResizeObserver(()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!document.getElementById('view-painel').hidden){chartBud();chartMes();chartAc();chartDep();chartRec();}},120);}).observe(document.querySelector('#dono main')||document.querySelector('main'));
+function render(){renderSummary();chartBud();chartMes();chartAc();chartDep();tableHon();chartRec();tableEsc();chartFluxo();chartMotivo();tableZedoa();chartFunil();}
+segSync('f-mode',S.mode);fillMonths(fMonth,2026,10);fillMonths(rMonth,2026,10);buildAreas();render();
+let rt;new ResizeObserver(()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!document.getElementById('view-painel').hidden){chartBud();chartMes();chartAc();chartDep();chartRec();chartFluxo();chartMotivo();chartFunil();}},120);}).observe(document.querySelector('#dono main')||document.querySelector('main'));
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>render());
 new MutationObserver(()=>render()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 window.__donoData={REC,AREAS,TIPOS,BUDGET,RULES,LAST,MESL};
@@ -1867,7 +2003,7 @@ const $=id=>document.getElementById(id);
 const fab=$('ast-fab'),box=$('ast'),head=$('ast-h'),log=$('ast-log'),form=$('ast-f'),inp=$('ast-in'),go=$('ast-go'),bMin=$('ast-min'),bX=$('ast-x');
 const GO_ICON=go.innerHTML,STOP_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 H17 V17 H7 Z"/></svg>';
 let sample=null,canTools=false,ctl=null,busy=false,turns=[],state='unknown';
-const SUG=['Quais áreas estão acima do budget em 2026?','Quanto pagamos em condenações trabalhistas até setembro?','Quais requisições estão devolvidas agora?'];
+const SUG=['Quais áreas estão acima do budget em 2026?','Quanto pagamos em condenações trabalhistas até outubro?','Quais requisições estão devolvidas agora?'];
 const store={get(){try{return JSON.parse(localStorage.getItem('ast-pos')||'null')}catch(e){return null}},set(v){try{localStorage.setItem('ast-pos',JSON.stringify(v))}catch(e){}}};
 
 function empty(){log.replaceChildren();const w=document.createElement('div');w.className='ast-empty';const p=document.createElement('p');

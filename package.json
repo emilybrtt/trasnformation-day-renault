@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:scripts": "node --test scripts/__tests__/*.test.mjs",
     "test:e2e": "playwright test --pass-with-no-tests",
+    "test:e2e:html": "playwright test --config=playwright.html.config.ts",
     "db:migrate": "npm run db:migrate -w @gavve/api",
     "db:deploy": "npm run db:deploy -w @gavve/api",
     "db:seed": "npm run db:seed -w @gavve/api",
