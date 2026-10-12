@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   abrirChamadoSchema,
+  anexoObrigatorioDaFamilia,
   criarSolicitacaoSchema,
   devolverSolicitacaoSchema,
+  familiaDoFluxo,
   linhaLancamentoSchema,
   resolverAlertaSchema,
 } from './solicitacao.js'
@@ -65,5 +67,21 @@ describe('schemas de ação', () => {
 
   it('abrirChamadoSchema exige número do chamado', () => {
     expect(() => abrirChamadoSchema.parse({ numeroChamado: '' })).toThrow()
+  })
+})
+
+describe('familiaDoFluxo / anexoObrigatorioDaFamilia (F12)', () => {
+  it('agrupa os 5 tipoFluxo nas 3 famílias', () => {
+    expect(familiaDoFluxo('ANEXO_V_ADIANTAMENTO')).toBe('ANEXO_V')
+    expect(familiaDoFluxo('ANEXO_V_BAIXA')).toBe('ANEXO_V')
+    expect(familiaDoFluxo('ANEXO_V_REEMBOLSO')).toBe('ANEXO_V')
+    expect(familiaDoFluxo('RC_HONORARIOS_NF')).toBe('RC_HONORARIOS')
+    expect(familiaDoFluxo('RBS_DD_GUIA')).toBe('RBS_DD')
+  })
+
+  it('documento obrigatório muda por família', () => {
+    expect(anexoObrigatorioDaFamilia('RBS_DD')).toBe('GUIA')
+    expect(anexoObrigatorioDaFamilia('RC_HONORARIOS')).toBe('NF')
+    expect(anexoObrigatorioDaFamilia('ANEXO_V')).toBeNull()
   })
 })

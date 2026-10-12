@@ -1,16 +1,26 @@
 import { randomUUID } from 'node:crypto'
 import type { Prisma, Semaforo, StatusSolicitacao, TipoFluxo } from '@prisma/client'
 import type { CriarSolicitacaoInput, LinhaLancamentoInput } from '@gavve/shared'
+import { familiaDoFluxo } from '@gavve/shared'
 import type { UsuarioAutenticado } from '../middleware/auth.js'
 import { podeAcessarEscritorio } from '../middleware/escritorioScope.js'
 import { resolverDePara } from '../lib/dePara.js'
 import { ErroHttp, naoEncontrado, transicaoInvalida } from '../lib/erroHttp.js'
 import { registrarHistorico } from '../lib/historico.js'
+import { getIntegracaoPortal0800 } from '../lib/integracaoPortal0800/index.js'
+import { getIntegracaoPortalSSC } from '../lib/integracaoPortalSSC/index.js'
+import { getIntegracaoSap } from '../lib/integracaoSap/index.js'
 import { criarNotificacao } from '../lib/notificacoes.js'
 import { prisma } from '../lib/prisma.js'
 import { piorSemaforo, semaforoDaSolicitacao } from '../lib/semaforo.js'
 import { getStorage } from '../lib/storage/index.js'
 import { validarEAtualizarAlertas } from './validacoes.js'
+
+function exigirFamilia(tipoFluxo: TipoFluxo, esperada: ReturnType<typeof familiaDoFluxo>, acao: string) {
+  if (familiaDoFluxo(tipoFluxo) !== esperada) {
+    throw new ErroHttp(422, { erro: `"${acao}" só se aplica a solicitações do fluxo ${esperada}.` })
+  }
+}
 
 async function montarLinhas(linhas: LinhaLancamentoInput[], ano: number) {
   return Promise.all(
@@ -254,6 +264,7 @@ export async function devolverSolicitacao(usuario: UsuarioAutenticado, id: strin
 
 export async function abrirChamado(usuario: UsuarioAutenticado, id: string, numeroChamado: string) {
   const atual = await buscarOuFalhar(id)
+  exigirFamilia(atual.tipoFluxo, 'RBS_DD', 'abrir chamado RBS_DD')
   if (atual.status !== 'APROVADO') throw transicaoInvalida(atual.status, 'CHAMADO_ABERTO')
 
   const solicitacao = await prisma.solicitacao.update({
@@ -270,6 +281,88 @@ export async function abrirChamado(usuario: UsuarioAutenticado, id: string, nume
   return solicitacao
 }
 
+/** Fluxo ANEXO_V (adiantamento/baixa/reembolso): abre o chamado no portal SSC via
+ * IntegracaoPortalSSC (mock) — paralelo ao abrirChamado do RBS_DD, mas com a
+ * integração/terminologia própria do Anexo V (F12). */
+export async function abrirChamadoAnexoV(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  exigirFamilia(atual.tipoFluxo, 'ANEXO_V', 'abrir chamado Anexo V')
+  if (atual.status !== 'APROVADO') throw transicaoInvalida(atual.status, 'CHAMADO_ABERTO')
+
+  const { numeroChamado } = await getIntegracaoPortalSSC().abrirChamadoAnexoV(id)
+  const solicitacao = await prisma.solicitacao.update({
+    where: { id },
+    data: { status: 'CHAMADO_ABERTO', numeroChamado },
+  })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'abrir-chamado-anexo-v',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'CHAMADO_ABERTO' }, numeroChamado },
+  })
+  return solicitacao
+}
+
+/** Fluxo RC_HONORARIOS_NF, passo 1/3: cria o RC no SAP (mock). */
+export async function criarRc(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  exigirFamilia(atual.tipoFluxo, 'RC_HONORARIOS', 'criar RC')
+  if (atual.status !== 'APROVADO') throw transicaoInvalida(atual.status, 'RC_CRIADO')
+
+  const { numeroRc } = await getIntegracaoSap().criarRc(id)
+  const solicitacao = await prisma.solicitacao.update({ where: { id }, data: { status: 'RC_CRIADO', numeroRc } })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'criar-rc',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'RC_CRIADO' }, numeroRc },
+  })
+  return solicitacao
+}
+
+/** Fluxo RC_HONORARIOS_NF, passo 2/3: lança a NF no Portal 0800 (mock). */
+export async function lancarNf(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  exigirFamilia(atual.tipoFluxo, 'RC_HONORARIOS', 'lançar NF')
+  if (atual.status !== 'RC_CRIADO') throw transicaoInvalida(atual.status, 'NF_LANCADA')
+
+  const { protocolo } = await getIntegracaoPortal0800().lancarNf(id)
+  const solicitacao = await prisma.solicitacao.update({ where: { id }, data: { status: 'NF_LANCADA', protocoloNf: protocolo } })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'lancar-nf',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'NF_LANCADA' }, protocolo },
+  })
+  return solicitacao
+}
+
+/** Fluxo RC_HONORARIOS_NF, passo 3/3: programa o pagamento no SAP (mock). */
+export async function programarPagamento(usuario: UsuarioAutenticado, id: string) {
+  const atual = await buscarOuFalhar(id)
+  exigirFamilia(atual.tipoFluxo, 'RC_HONORARIOS', 'programar pagamento')
+  if (atual.status !== 'NF_LANCADA') throw transicaoInvalida(atual.status, 'PAGAMENTO_PROGRAMADO')
+
+  const { numeroDocumentoSap } = await getIntegracaoSap().programarPagamento(id)
+  const solicitacao = await prisma.solicitacao.update({
+    where: { id },
+    data: { status: 'PAGAMENTO_PROGRAMADO', numeroDocumentoSap },
+  })
+  await registrarHistorico({
+    entidade: 'Solicitacao',
+    entidadeId: id,
+    acao: 'programar-pagamento',
+    usuarioId: usuario.firebaseUid,
+    diff: { status: { de: atual.status, para: 'PAGAMENTO_PROGRAMADO' }, numeroDocumentoSap },
+  })
+  return solicitacao
+}
+
+const STATUS_PRECURSORES_PAGAMENTO: StatusSolicitacao[] = ['CHAMADO_ABERTO', 'PAGAMENTO_PROGRAMADO']
+
 export interface ComprovanteUpload {
   buffer: Buffer
   nomeArquivo: string
@@ -283,7 +376,7 @@ export async function registrarPagamento(
   comprovante?: ComprovanteUpload,
 ) {
   const atual = await buscarOuFalhar(id)
-  if (atual.status !== 'CHAMADO_ABERTO') throw transicaoInvalida(atual.status, 'PAGO')
+  if (!STATUS_PRECURSORES_PAGAMENTO.includes(atual.status)) throw transicaoInvalida(atual.status, 'PAGO')
 
   const solicitacao = await prisma.solicitacao.update({
     where: { id },
