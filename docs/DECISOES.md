@@ -485,6 +485,67 @@ instrução do briefing ("decida, registre aqui e siga").
   (só Escritório, do F9) e fica para o F10, que já foi anunciado como "integração
   Escritório + Analista com a API, já incorporando os 3 fluxos do F12".
 
+## F10 — integração Analista + 3 fluxos no front (2026-10-12)
+
+- **Fluxo do Escritório (F9) já estava 100% integrado à API de verdade** — revisei
+  `NovaSolicitacao.tsx`/`LinhaLancamentoCampos.tsx`/`Inicio.tsx` e não havia nenhum
+  mock ou dado estático restante (AREAS/MOTIVOS são taxonomia de negócio fixa, não
+  "mock"; de-para, extração de PDF, upload de anexo, criação/envio — tudo via API
+  real desde o F9). Nada para trocar aqui.
+- **Painel de ações por família (`PAINEL_POR_FAMILIA`)** é um `switch` por
+  `familiaDoFluxo` (F12) renderizando um componente diferente — cada um só mostra o
+  botão da etapa atual (ex.: RC_HONORARIOS mostra "Criar RC" só quando `APROVADO`,
+  "Lançar NF" só quando `RC_CRIADO` etc.), em vez de mostrar os 3 botões sempre e
+  desabilitar os errados — mais simples de ler e impossível de clicar fora de
+  ordem.
+- **Linha do tempo (`LinhaDoTempo`) é derivada só do `status` atual**, igual já
+  era no F9 (não existe endpoint de histórico público) — uma sequência de passos
+  por família, destacando os já alcançados.
+- **"Aprovar todas as verdes"** (ideia do briefing original, B7) implementada na
+  fila de conferência: aprova em sequência (não em paralelo, pra não estourar o
+  rate limit nem confundir mensagens de erro) todas as solicitações 🟢 visíveis
+  com os filtros atuais.
+- **Resolver alerta e devolver** usam um campo de texto inline em vez de modal —
+  mais simples, consistente com o resto do app (sem biblioteca de modal).
+- **Erro de processo, não de código:** percebi no meio do card que tinha ficado
+  commitando direto na branch `main` local (sem `checkout -b`) depois do merge do
+  F12 — corrigido criando `feat/F10-analista` e movendo as mudanças não
+  commitadas pra lá antes de continuar. Nada chegou a ser commitado/empurrado na
+  main.
+
+## B14 — deploy preparado (2026-10-12)
+
+- **Testei o `Dockerfile` de verdade (build local + `docker run`)**, mesmo sem
+  publicar nada na nuvem — "preparar, não executar" é sobre não criar recursos
+  do GCP/Firebase, não sobre não validar que a imagem funciona. Isso pegou 3 bugs
+  reais que só apareceriam num deploy de verdade:
+  1. **`npm ci` falhava no estágio `deps`**: o `postinstall` do
+     `packages/shared` roda `tsc -p tsconfig.json`, mas eu só tinha copiado o
+     `package.json` dele nesse estágio, sem o `tsconfig.json`/`src`. Corrigido
+     copiando o código-fonte completo antes do `npm ci` (um só estágio `build`
+     em vez de `deps` + `build` separados).
+  2. **`multer` não aparecia no runtime**: o `npm install` do workspace decidiu
+     aninhar essa dependência em `apps/api/node_modules/multer` em vez de
+     hoistear pra raiz — copiar só `/app/node_modules` deixava isso de fora.
+     Corrigido copiando a pasta `apps/api` inteira (não só `dist`/`package.json`/
+     `prisma`) no estágio final.
+  3. **Prisma não carregava o motor nativo no Alpine**: faltava o pacote
+     `openssl` na imagem — sem ele, o Prisma não detecta a versão do OpenSSL
+     (nem em build nem em runtime) e tenta carregar o arquivo de motor errado.
+     Corrigido com `apk add --no-cache openssl` no estágio base, e adicionado
+     `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` no
+     `generator client` do `schema.prisma` (documentando explicitamente o alvo
+     de produção, mesmo que `"native"` sozinho já resolvesse certo com o
+     openssl instalado).
+- **`.dockerignore` na raiz** (não só `.gitignore`) — o contexto de build do
+  Docker não respeita `.gitignore` automaticamente.
+- **Secrets do `deploy.yml` não existem neste repositório** (de propósito — ver
+  `docs/DEPLOY.md`). O workflow só roda via `workflow_dispatch`, nunca em
+  push/PR, e não toca no `ci.yml`.
+- **GitLab CI é o equivalente homologado na Renault** — documentado em
+  `docs/DEPLOY.md` como pedia o card, já que GitHub Actions é só o que o
+  Insper/GitHub oferecem de graça pra este projeto de estudante.
+
 ## H1 — plano B em HTML (2026-10-12)
 
 > Card isolado do board de `apps/`/`packages/` (ver instrução do card): escopo só em

@@ -1,0 +1,89 @@
+# Deploy manual (preparado, não testado) — B14. Só roda com workflow_dispatch,
+# nunca em push/PR. Precisa de secrets que ainda não existem neste repositório
+# (ver docs/DEPLOY.md) — até lá, rodar isso falha na etapa de autenticação, o que
+# é o comportamento esperado.
+#
+# NÃO mexe no ci.yml nem roda nada automaticamente.
+
+name: Deploy (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: 'Ambiente de destino'
+        required: true
+        default: 'homologacao'
+        type: choice
+        options: [homologacao, producao]
+
+env:
+  NODE_VERSION: '20'
+  REGION: southamerica-east1
+  SERVICE_NAME: gavve-api
+
+jobs:
+  build-e-deploy-api:
+    name: Build da imagem + Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # necessário para o Workload Identity Federation (sem chave JSON)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Autenticar no Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurar Docker para o Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build e push da imagem da API
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gavve/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          docker build -f apps/api/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy no Cloud Run
+        run: |
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image "$IMAGE" \
+            --region "${{ env.REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,AUTH_MODE=live,STORAGE_PROVIDER=gcs,LLM_PROVIDER=gemini" \
+            --set-secrets "DATABASE_URL=gavve-database-url:latest,GEMINI_API_KEY=gavve-gemini-api-key:latest"
+
+  build-e-deploy-front:
+    name: Build do front + Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: build-e-deploy-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @gavve/shared -w @gavve/web
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_USE_AUTH_EMULATOR: 'false'
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy no Firebase Hosting
+        run: npx firebase deploy --only hosting --project "${{ secrets.GCP_PROJECT_ID }}"

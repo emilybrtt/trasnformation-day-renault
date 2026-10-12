@@ -22,6 +22,9 @@ const LABEL_STATUS: Record<string, string> = {
   DEVOLVIDO: 'Devolvido',
   APROVADO: 'Aprovado',
   CHAMADO_ABERTO: 'Chamado aberto',
+  RC_CRIADO: 'RC criado',
+  NF_LANCADA: 'NF lançada',
+  PAGAMENTO_PROGRAMADO: 'Pagamento programado',
   PAGO: 'Pago',
   CANCELADO: 'Cancelado',
 }
@@ -33,8 +36,27 @@ const COR_STATUS: Record<string, string> = {
   DEVOLVIDO: 'bg-[var(--bad-soft)] text-[var(--bad-ink)]',
   APROVADO: 'bg-[var(--ok-soft)] text-[var(--ok-ink)]',
   CHAMADO_ABERTO: 'bg-[var(--ink)] text-[var(--accent)]',
+  RC_CRIADO: 'bg-[var(--ink)] text-[var(--accent)]',
+  NF_LANCADA: 'bg-[var(--ink)] text-[var(--accent)]',
+  PAGAMENTO_PROGRAMADO: 'bg-[var(--ink)] text-[var(--accent)]',
   PAGO: 'bg-[var(--ok)] text-[var(--on-ok)]',
   CANCELADO: 'bg-[var(--surface-2)] text-[var(--muted)] line-through',
+}
+
+const LABEL_TIPO_FLUXO: Record<string, string> = {
+  ANEXO_V_ADIANTAMENTO: 'Anexo V · Adiantamento',
+  ANEXO_V_BAIXA: 'Anexo V · Baixa',
+  ANEXO_V_REEMBOLSO: 'Anexo V · Reembolso',
+  RC_HONORARIOS_NF: 'RC Honorários (NF)',
+  RBS_DD_GUIA: 'RBS_DD (guia)',
+}
+
+export function TipoFluxoBadge({ tipoFluxo }: { tipoFluxo: string }) {
+  return (
+    <span className="f-mono inline-flex items-center bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-2)]">
+      {LABEL_TIPO_FLUXO[tipoFluxo] ?? tipoFluxo}
+    </span>
+  )
 }
 
 export function StatusBadge({ status }: { status: string }) {

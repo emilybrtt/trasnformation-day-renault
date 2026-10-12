@@ -4,11 +4,13 @@ import { EstadoCarregando } from './components/ui/Estado'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import { AppLayout } from './layouts/AppLayout'
-import { DetalheSolicitacao } from './pages/escritorio/DetalheSolicitacao'
-import { Inicio } from './pages/escritorio/Inicio'
-import { NovaSolicitacao } from './pages/escritorio/NovaSolicitacao'
 import { EmConstrucao } from './pages/EmConstrucao'
 import { Login } from './pages/Login'
+import { DetalheSolicitacao as DetalheSolicitacaoAnalista } from './pages/analista/DetalheSolicitacao'
+import { FilaConferencia } from './pages/analista/FilaConferencia'
+import { DetalheSolicitacao as DetalheSolicitacaoEscritorio } from './pages/escritorio/DetalheSolicitacao'
+import { Inicio } from './pages/escritorio/Inicio'
+import { NovaSolicitacao } from './pages/escritorio/NovaSolicitacao'
 
 const queryClient = new QueryClient()
 
@@ -25,7 +27,12 @@ function RotasProtegidas() {
           <>
             <Route path="/" element={<Inicio />} />
             <Route path="/solicitacoes/nova" element={<NovaSolicitacao />} />
-            <Route path="/solicitacoes/:id" element={<DetalheSolicitacao />} />
+            <Route path="/solicitacoes/:id" element={<DetalheSolicitacaoEscritorio />} />
+          </>
+        ) : usuario.perfil === 'ANALISTA' ? (
+          <>
+            <Route path="/" element={<FilaConferencia />} />
+            <Route path="/solicitacoes/:id" element={<DetalheSolicitacaoAnalista />} />
           </>
         ) : (
           <Route path="*" element={<EmConstrucao perfil={usuario.perfil} />} />
