@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck -w @gavve/shared && npm run typecheck -w @gavve/api && npm run typecheck -w @gavve/web && tsc -p tsconfig.scripts.json",
     "test": "vitest run",
     "test:scripts": "node --test scripts/__tests__/*.test.mjs",
-    "test:e2e": "playwright test --pass-with-no-tests",
+    "test:e2e": "npm run auth:seed-users && playwright test --pass-with-no-tests",
     "test:e2e:html": "playwright test --config=playwright.html.config.ts",
     "db:migrate": "dotenv -e .env -- npm run db:migrate -w @gavve/api",
     "db:deploy": "dotenv -e .env -- npm run db:deploy -w @gavve/api",
