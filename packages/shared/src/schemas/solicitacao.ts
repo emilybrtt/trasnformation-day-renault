@@ -87,7 +87,13 @@ export const criarSolicitacaoSchema = z.object({
   formaPagamento: formaPagamentoSchema,
   dataDocumento: z.coerce.date(),
   dataPrevistaPagamento: z.coerce.date().optional(),
-  numeroDocumentoLbs: z.string().trim().min(1).optional(),
+  // preprocess: o campo é um input de texto opcional no front (register sem
+  // defaultValue) — quando não preenchido, o react-hook-form manda '' em vez
+  // de undefined, e '' falhava o min(1) mesmo sendo opcional (achado testando
+  // o fluxo ANEXO_V na Fase D: não passa por extração de PDF, então nunca
+  // preenche esse campo, e o formulário ficava travado na revisão sem
+  // feedback nenhum pro usuário).
+  numeroDocumentoLbs: z.preprocess((v) => (v === '' ? undefined : v), z.string().trim().min(1).optional()),
   observacao: z.string().trim().optional(),
   linhas: z.array(linhaLancamentoSchema).min(1, 'A solicitação precisa de ao menos um lançamento'),
 })

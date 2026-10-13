@@ -546,6 +546,99 @@ instrução do briefing ("decida, registre aqui e siga").
   `docs/DEPLOY.md` como pedia o card, já que GitHub Actions é só o que o
   Insper/GitHub oferecem de graça pra este projeto de estudante.
 
+## Fase D — verificação final (2026-10-12)
+
+O briefing original pedia explicitamente para validar que o projeto "sobe do zero
+sem credenciais" com `npm run demo:reset && npm run dev`. Fazer essa verificação de
+fato (em vez de confiar que os cards passados já garantiam isso) achou quatro bugs
+reais, nenhum detectado antes porque todo teste local anterior usava variáveis de
+ambiente inline (`DATABASE_URL=... npm run ...`) em vez do fluxo documentado
+(`cp .env.example .env && npm run dev`):
+
+- **Prisma CLI não lê o `.env` da raiz do monorepo.** `prisma migrate
+  deploy`/`db:seed` falhavam com `Environment variable not found: DATABASE_URL`
+  mesmo com o `.env` copiado na raiz — o Prisma CLI só carrega `.env` ao lado do
+  `schema.prisma` ou no cwd do processo que o invoca, não em um ancestral
+  arbitrário. Ou seja, **o quick-start documentado no README nunca tinha
+  funcionado de verdade**. Corrigido instalando `dotenv-cli` como devDependency
+  da raiz e envolvendo os scripts raiz relevantes (`dev`, `db:migrate`,
+  `db:deploy`, `db:seed`, `demo:reset`, `auth:seed-users`) com `dotenv -e .env
+  --`. Verificado que isso não quebra o CI (que não tem `.env`, só variáveis via
+  `env:` do workflow): `dotenv-cli` não falha quando o arquivo não existe,
+  testado explicitamente com o `.env` movido para fora.
+- **Vite também não lê o `.env` da raiz** (mesmo problema do Prisma, mas do
+  lado do front) — `import.meta.env.VITE_API_URL` etc. ficavam `undefined`
+  silenciosamente, quebrando toda chamada à API. Corrigido com `envDir:
+  '../../'` em `apps/web/vite.config.ts`. Verificado via curl no bundle servido
+  que as variáveis `VITE_*` passaram a aparecer corretas.
+- **`playwright.config.ts` não subia a API.** O job de e2e do CI só provisiona
+  Postgres e o emulador do Firebase Auth — nada sobe o `apps/api` como processo
+  persistente durante os testes. Corrigido trocando `webServer` por um array
+  com as duas entradas (API com healthcheck em `/health`, e o front).
+- **Usuários demo do emulador do Firebase Auth são perdidos a cada reinício do
+  emulador** (estado só em memória). Isso não é um bug a corrigir — é um
+  comportamento esperado do emulador — mas é fácil esquecer, então documentado
+  explicitamente no README ("rode `auth:seed-users` de novo sempre que reiniciar
+  o `npm run dev`") em vez de dizer "uma vez", como dizia antes.
+
+Escrevendo o `e2e/demo.spec.ts` (roteiro completo dos 3 fluxos do F12) também
+achou dois bugs reais de produto, não só de configuração — ambos corrigidos:
+
+- **Token de autenticação ausente logo após um deep-link/reload.**
+  `apps/web/src/lib/api.ts` lia `auth.currentUser?.getIdToken()` de forma
+  síncrona; como o Firebase restaura a sessão persistida (IndexedDB) de forma
+  assíncrona, a primeira requisição depois de um `page.goto()` direto (ou um F5
+  de verdade, ou abrir um link direto para `/solicitacoes/:id`) saía sem o
+  header `Authorization`, recebia 401, e a tela mostrava "Solicitação não
+  encontrada" mesmo a solicitação existindo. Corrigido expondo
+  `auth.authStateReady()` (API oficial do SDK pra isso) como `authPronto` em
+  `apps/web/src/lib/firebase.ts`, e aguardando essa promise antes de montar os
+  headers em `autorizacao()`. Esse era um bug real de produto (afetaria
+  qualquer usuário atualizando a página), não só do teste.
+- **Campo opcional `numeroDocumentoLbs` travava o formulário sem feedback
+  nenhum no fluxo ANEXO_V.** O schema zod tinha
+  `z.string().trim().min(1).optional()`, mas o input de texto correspondente
+  (registrado via `react-hook-form` sem `defaultValue`) manda `''` em vez de
+  `undefined` quando não preenchido — e `''` falha o `min(1)` mesmo sendo
+  opcional. Isso só aparecia no fluxo ANEXO_V porque RBS_DD e RC_HONORARIOS
+  sempre preenchem esse campo via extração de PDF; ANEXO_V não passa por
+  extração, então o campo ficava vazio e a validação falhava silenciosamente
+  (sem handler de erro de validação na tela de revisão), travando o usuário no
+  passo 3 sem nenhuma mensagem. Corrigido em
+  `packages/shared/src/schemas/solicitacao.ts` com um `z.preprocess` que trata
+  `''` como ausente antes de validar o `min(1)`.
+- (Não é bug, é a regra de negócio funcionando certo) o fluxo de teste leve de
+  ANEXO_V usa **Adiantamento**, não **Baixa** — uma Baixa sem Adiantamento
+  anterior corretamente dispara o alerta `SALDO_ADIANTAMENTO` (vermelho,
+  bloqueia aprovação), já que o saldo fictício do seed para essa combinação é
+  negativo. Trocar o cenário de teste pra Adiantamento evita essa dependência
+  sem enfraquecer a cobertura do roteiro (o alerta vermelho de saldo já tem
+  teste de unidade dedicado em `validacoes.test.ts`).
+- **CI não tem nenhum `.env` nem `VITE_*` — a tela inteira quebrava com
+  `auth/invalid-api-key` antes de renderizar.** Passando os 3 testes
+  localmente, o primeiro push pro PR do e2e falhou no CI com um timeout seco
+  de 30s esperando o botão de login aparecer, sem nenhum erro visível nos
+  logs. Primeira hipótese (errada, mas não prejudicial): achei que `vite dev`
+  fosse lento demais pra compilar o grafo inteiro da SPA sob demanda numa
+  runner compartilhada, e troquei o `webServer` do front pra build + `vite
+  preview` (mais rápido e mais fiel ao deploy real de qualquer forma, então
+  mantido). Isso não resolveu — baixei o `playwright-report` do próprio run do
+  CI e o trace mostrou a causa real: `FirebaseError: Firebase: Error
+  (auth/invalid-api-key)`, lançado de forma síncrona dentro de `getAuth(app)`
+  em `apps/web/src/lib/firebase.ts`, derrubando o React inteiro antes de
+  montar qualquer coisa (tela em branco, nenhum elemento na árvore de
+  acessibilidade). Causa raiz: o job de e2e do `ci.yml` não copia
+  `.env.example` nem define nenhuma variável `VITE_*` no workflow, então o
+  build do Vite embute `undefined` pra `VITE_FIREBASE_API_KEY` etc. Como
+  `ci.yml` é explicitamente "nunca modificado por mim" (regra do CLAUDE.md), a
+  correção ficou do lado do app: dei defaults pros valores fictícios do Auth
+  Emulator diretamente em `firebase.ts`/`api.ts` (`|| 'demo-api-key'` etc. —
+  são os mesmos valores de `.env.example`, não são segredos, só funcionam
+  contra o emulador). Reproduzido e confirmado **sem o fix** (erro reaparece)
+  e **com o fix** (3/3 passam) rodando localmente com o `.env` renomeado pra
+  fora do caminho e as mesmas variáveis de ambiente do `ci.yml` exportadas —
+  ou seja, uma reprodução fiel do ambiente do CI, não só uma suposição.
+
 ## H1 — plano B em HTML (2026-10-12)
 
 > Card isolado do board de `apps/`/`packages/` (ver instrução do card): escopo só em
